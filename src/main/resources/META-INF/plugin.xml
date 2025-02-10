@@ -14,8 +14,10 @@
          Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
     <description><![CDATA[
-    Enter short description for your plugin here.<br>
-    <em>most HTML tags may be used</em>
+    <em>Neon Brackets</em> is an IntelliJ IDE plugin that enhances code readability by colorizing matching brackets,
+    parentheses, and braces in vibrant colors.<br>
+    Instantly spot corresponding pairs and improve navigation in complex code structures. Perfect for developers who
+    want a visually intuitive coding experience! 🚀🎨
   ]]></description>
 
     <!-- Product and plugin compatibility requirements.

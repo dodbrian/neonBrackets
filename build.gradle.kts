@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.25"
-    id("org.jetbrains.intellij.platform") version "2.2.1"
+    id("org.jetbrains.kotlin.jvm") version "1.9.22"
+    id("org.jetbrains.intellij.platform") version "2.5.0"
 }
 
 group = "tech.zimin.neonBrackets"
@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    intellijPlatform.intellijIdeaCommunity("2024.3.2.2")
+    intellijPlatform.intellijIdeaCommunity("2024.1")
 }
 
 // Configure Gradle IntelliJ Plugin
@@ -24,6 +24,14 @@ intellijPlatform {
     pluginConfiguration {
         name = "Neon Brackets"
         version = "${project.version}"
+    }
+    
+    // Add plugin verification configuration
+    pluginVerification {
+        ides {
+            // Verify against the same version as the plugin targets
+            ide("IC", "2024.1")
+        }
     }
 }
 
@@ -39,7 +47,7 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("241")
-        untilBuild.set("243.*")
+        untilBuild.set("241.*")
     }
 
     signPlugin {

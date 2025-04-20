@@ -24,17 +24,15 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
-    <!-- Make java module optional to support Rider and other IDEs -->
-    <depends optional="true">com.intellij.modules.java</depends>
-    <!-- Add Rider module support -->
-    <depends optional="true">com.intellij.modules.rider</depends>
-
+    
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <!-- Register as application service to store settings -->
         <applicationService serviceImplementation="tech.zimin.neonbrackets.neonbrackets.NeonBracketsFactory" />
         <editorFactoryListener implementation="tech.zimin.neonbrackets.neonbrackets.NeonBracketsEditorListener"/>
+        <!-- Register startup activity to initialize the plugin when IDE starts -->
+        <postStartupActivity implementation="tech.zimin.neonbrackets.neonbrackets.NeonBracketsStartupActivity"/>
     </extensions>
     
     <!-- Register component to initialize the highlighting pass -->

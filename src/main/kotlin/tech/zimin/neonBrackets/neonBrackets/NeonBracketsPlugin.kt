@@ -25,6 +25,11 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.lexer.Lexer
+import com.intellij.psi.tree.IElementType
+import com.intellij.psi.TokenType
+import com.intellij.lang.LanguageParserDefinitions
 import com.intellij.ui.JBColor
 import java.awt.Font
 
@@ -339,6 +344,10 @@ private val bracketPairs = listOf(
     Pair('[', ']')
 )
 
+// Flag to enable/disable comment and string detection
+// Set to false initially to ensure basic colorization works
+private var SKIP_COMMENTS_AND_STRINGS = true
+
 /**
  * Get the current IDE product name
  */
@@ -379,9 +388,39 @@ fun highlightBracketsInEditor(editor: Editor) {
             stacks[open] = mutableListOf()
         }
 
+        // Try to get comment and string ranges, but only if enabled
+        var commentAndStringRanges = emptyList<Pair<Int, Int>>()
+        if (SKIP_COMMENTS_AND_STRINGS) {
+            try {
+                val psiFile = getPsiFile(editor)
+                if (psiFile != null) {
+                    println("[NeonBrackets] Got PSI file: ${psiFile.name}, language: ${psiFile.language.displayName}")
+                    val lexer = getLexerForFile(psiFile)
+                    if (lexer != null) {
+                        println("[NeonBrackets] Got lexer for language: ${psiFile.language.displayName}")
+                        commentAndStringRanges = getCommentAndStringRanges(lexer, text.toString())
+                        println("[NeonBrackets] Found ${commentAndStringRanges.size} comment/string ranges")
+                    } else {
+                        println("[NeonBrackets] Could not get lexer for language: ${psiFile.language.displayName}")
+                    }
+                } else {
+                    println("[NeonBrackets] Could not get PSI file for editor")
+                }
+            } catch (e: Exception) {
+                println("[NeonBrackets] Error getting comment/string ranges: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+
         // Find matching brackets
         for (i in text.indices) {
             val char = text[i]
+            
+            // Skip if inside comment or string, but only if enabled and we have ranges
+            if (SKIP_COMMENTS_AND_STRINGS && commentAndStringRanges.isNotEmpty() && 
+                isInsideCommentOrString(i, commentAndStringRanges)) {
+                continue
+            }
 
             for ((open, close) in bracketPairs) {
                 if (char == open) {
@@ -390,6 +429,13 @@ fun highlightBracketsInEditor(editor: Editor) {
                 } else if (char == close && stacks[open]?.isNotEmpty() == true) {
                     // Found closing bracket with matching opening bracket
                     val openPos = stacks[open]?.removeAt(stacks[open]?.size!! - 1) ?: continue
+                    
+                    // Skip if opening bracket is inside comment or string, but only if enabled and we have ranges
+                    if (SKIP_COMMENTS_AND_STRINGS && commentAndStringRanges.isNotEmpty() && 
+                        isInsideCommentOrString(openPos, commentAndStringRanges)) {
+                        continue
+                    }
+                    
                     val level = stacks[open]?.size ?: 0
                     bracketMatches.add(Triple(openPos, i, level))
                 }
@@ -441,4 +487,77 @@ fun highlightBracketsInEditor(editor: Editor) {
         println("[NeonBrackets] Error highlighting brackets: ${e.message}")
         e.printStackTrace()
     }
+}
+
+/**
+ * Get the PSI file for the editor.
+ */
+private fun getPsiFile(editor: Editor): PsiFile? {
+    val project = editor.project ?: return null
+    return PsiDocumentManager.getInstance(project).getPsiFile(editor.document)
+}
+
+/**
+ * Get a lexer for the given PSI file.
+ */
+private fun getLexerForFile(file: PsiFile): Lexer? {
+    try {
+        val language = file.language
+        val parserDefinition = LanguageParserDefinitions.INSTANCE.forLanguage(language) ?: return null
+        return parserDefinition.createLexer(file.project)
+    } catch (e: Exception) {
+        println("[NeonBrackets] Error creating lexer: ${e.message}")
+        return null
+    }
+}
+
+/**
+ * Get ranges of comments and strings in the document.
+ */
+private fun getCommentAndStringRanges(lexer: Lexer, text: String): List<Pair<Int, Int>> {
+    val ranges = mutableListOf<Pair<Int, Int>>()
+    
+    try {
+        lexer.start(text)
+        
+        while (lexer.tokenType != null) {
+            val tokenType = lexer.tokenType
+            
+            // Check if token is a comment or string
+            if (isCommentOrString(tokenType)) {
+                ranges.add(Pair(lexer.tokenStart, lexer.tokenEnd))
+            }
+            
+            lexer.advance()
+        }
+    } catch (e: Exception) {
+        println("[NeonBrackets] Error processing lexer tokens: ${e.message}")
+    }
+    
+    return ranges
+}
+
+/**
+ * Check if a token type represents a comment or string.
+ */
+private fun isCommentOrString(tokenType: IElementType?): Boolean {
+    if (tokenType == null) return false
+    
+    val typeName = tokenType.toString().uppercase()
+    return typeName.contains("COMMENT") || 
+           typeName.contains("STRING") || 
+           typeName.contains("CHAR") ||
+           tokenType == TokenType.WHITE_SPACE
+}
+
+/**
+ * Check if a position is inside a comment or string.
+ */
+private fun isInsideCommentOrString(position: Int, ranges: List<Pair<Int, Int>>): Boolean {
+    for ((start, end) in ranges) {
+        if (position in start until end) {
+            return true
+        }
+    }
+    return false
 }

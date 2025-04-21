@@ -29,13 +29,13 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <!-- Register as application service to store settings -->
-        <applicationService serviceImplementation="tech.zimin.neonbrackets.neonbrackets.NeonBracketsFactory" />
-        <editorFactoryListener implementation="tech.zimin.neonbrackets.neonbrackets.NeonBracketsEditorListener"/>
+        <applicationService serviceImplementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsFactory" />
+        <editorFactoryListener implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsEditorListener"/>
     </extensions>
     
     <!-- Register component to initialize the highlighting pass -->
     <projectListeners>
-        <listener class="tech.zimin.neonbrackets.neonbrackets.NeonBracketsInitializer"
+        <listener class="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"
                   topic="com.intellij.openapi.project.ProjectManagerListener"/>
     </projectListeners>
 </idea-plugin>

@@ -322,14 +322,14 @@ val BRACKET_HIGHLIGHTERS = Key<List<RangeHighlighter>>("NEON_BRACKET_HIGHLIGHTER
 val SKIP_BRACKET_HIGHLIGHTING = Key<Boolean>("NEON_SKIP_BRACKET_HIGHLIGHTING")
 val DOCUMENT_LISTENER = Key<DocumentListener>("NEON_DOCUMENT_LISTENER")
 
-// Pastel colors that are easier on the eyes
+// More vibrant and distinct colors for better visibility of neighboring brackets
 private val BRACKET_COLORS = listOf(
-    JBColor(java.awt.Color(255, 179, 186), java.awt.Color(200, 140, 145)),  // Pastel Pink
-    JBColor(java.awt.Color(186, 225, 255), java.awt.Color(140, 175, 200)),  // Pastel Blue
-    JBColor(java.awt.Color(186, 255, 201), java.awt.Color(140, 200, 155)),  // Pastel Green
-    JBColor(java.awt.Color(255, 223, 186), java.awt.Color(200, 175, 140)),  // Pastel Orange
-    JBColor(java.awt.Color(225, 186, 255), java.awt.Color(175, 140, 200)),  // Pastel Purple
-    JBColor(java.awt.Color(255, 255, 186), java.awt.Color(200, 200, 140))   // Pastel Yellow
+    JBColor(java.awt.Color(255, 105, 180), java.awt.Color(220, 90, 150)),  // Hot Pink
+    JBColor(java.awt.Color(65, 105, 225), java.awt.Color(55, 90, 190)),    // Royal Blue
+    JBColor(java.awt.Color(50, 205, 50), java.awt.Color(40, 175, 40)),     // Lime Green
+    JBColor(java.awt.Color(255, 165, 0), java.awt.Color(220, 140, 0)),     // Orange
+    JBColor(java.awt.Color(138, 43, 226), java.awt.Color(120, 40, 190)),   // Blue Violet
+    JBColor(java.awt.Color(30, 144, 255), java.awt.Color(25, 120, 210))    // Dodger Blue
 )
 
 private val bracketPairs = listOf(

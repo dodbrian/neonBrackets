@@ -14,8 +14,19 @@ repositories {
     }
 }
 
+// Default configuration uses IntelliJ IDEA Community
 dependencies {
-    intellijPlatform.intellijIdeaCommunity("2024.1")
+    intellijPlatform {
+        // Default to IntelliJ IDEA Community Edition
+        val ideType = project.findProperty("ideType") ?: "IC"
+        when (ideType) {
+            "RD" -> rider("2024.1", useInstaller = false)
+            // RustRover is relatively new, so we'll use the create method with the type
+            "RR" -> create("RR", "2024.1")
+            "PC" -> pycharmCommunity("2024.1")
+            else -> intellijIdeaCommunity("2024.1")
+        }
+    }
 }
 
 // Configure Gradle IntelliJ Plugin
@@ -25,7 +36,7 @@ intellijPlatform {
         name = "Neon Brackets"
         version = "${project.version}"
     }
-    
+
     // Add plugin verification configuration
     pluginVerification {
         ides {
@@ -58,5 +69,19 @@ tasks {
 
     publishPlugin {
         token.set(System.getenv("PUBLISH_TOKEN"))
+    }
+
+    // Fix for StartupActivity warning
+    register("fixStartupActivity") {
+        doLast {
+            println("Fixing StartupActivity warning by updating plugin.xml")
+            val pluginXml = file("src/main/resources/META-INF/plugin.xml")
+            val content = pluginXml.readText()
+            val updated = content.replace(
+                "<postStartupActivity implementation=\"tech.zimin.neonbrackets.neonbrackets.NeonBracketsStartupActivity\"/>",
+                "<projectService serviceImplementation=\"tech.zimin.neonbrackets.neonbrackets.NeonBracketsStartupActivity\"/>"
+            )
+            pluginXml.writeText(updated)
+        }
     }
 }

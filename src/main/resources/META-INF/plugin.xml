@@ -31,11 +31,13 @@
         <!-- Register as application service to store settings -->
         <applicationService serviceImplementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsFactory" />
         <editorFactoryListener implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsEditorListener"/>
+        <!-- Register startup activity -->
+        <postStartupActivity implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"/>
     </extensions>
     
-    <!-- Register component to initialize the highlighting pass -->
-    <projectListeners>
+    <!-- No longer needed as we're using StartupActivity -->
+    <!-- <projectListeners>
         <listener class="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"
                   topic="com.intellij.openapi.project.ProjectManagerListener"/>
-    </projectListeners>
+    </projectListeners> -->
 </idea-plugin>

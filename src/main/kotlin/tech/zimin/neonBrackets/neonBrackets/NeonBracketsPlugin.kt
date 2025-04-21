@@ -20,12 +20,12 @@ import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiFile
-import java.awt.Color
+import com.intellij.ui.JBColor
 import java.awt.Font
 
 /**
@@ -56,7 +56,7 @@ class NeonBracketsStartupActivity : StartupActivity {
                 println("[NeonBrackets] Startup activity processing editor for file: ${file.name}")
 
                 // Remove any existing highlighting
-                val existingHighlighters = editor.getUserData(NeonBracketsEditorListener.BRACKET_HIGHLIGHTERS)
+                val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS)
                 existingHighlighters?.forEach {
                     try {
                         it.dispose()
@@ -66,14 +66,14 @@ class NeonBracketsStartupActivity : StartupActivity {
                 }
 
                 // Add document listener if not already added
-                if (editor.getUserData(NeonBracketsEditorListener.DOCUMENT_LISTENER) == null) {
+                if (editor.getUserData(DOCUMENT_LISTENER) == null) {
                     val docListener = NeonBracketsDocumentListener(editor)
-                    editor.putUserData(NeonBracketsEditorListener.DOCUMENT_LISTENER, docListener)
+                    editor.putUserData(DOCUMENT_LISTENER, docListener)
                     editor.document.addDocumentListener(docListener)
                 }
 
                 // Apply highlighting
-                NeonBracketsEditorListener.highlightBracketsInEditor(editor)
+                highlightBracketsInEditor(editor)
             }
         }
     }
@@ -82,8 +82,8 @@ class NeonBracketsStartupActivity : StartupActivity {
 /**
  * Project listener that registers the highlighting pass factory when a project is opened.
  */
-class NeonBracketsInitializer : ProjectManagerListener {
-    override fun projectOpened(project: Project) {
+class NeonBracketsInitializer : StartupActivity, DumbAware {
+    override fun runActivity(project: Project) {
         println("[NeonBrackets] Project opened: ${project.name}")
 
         // Get the highlighting pass registrar for the project
@@ -116,11 +116,11 @@ class NeonBracketsInitializer : ProjectManagerListener {
 
                 // Add document listener
                 val docListener = NeonBracketsDocumentListener(editor)
-                editor.putUserData(NeonBracketsEditorListener.DOCUMENT_LISTENER, docListener)
+                editor.putUserData(DOCUMENT_LISTENER, docListener)
                 editor.document.addDocumentListener(docListener)
 
                 // Apply highlighting
-                NeonBracketsEditorListener.highlightBracketsInEditor(editor)
+                highlightBracketsInEditor(editor)
             }
         }
     }
@@ -158,11 +158,11 @@ class NeonBracketsApplicationInitializer {
 
                     // Add document listener
                     val docListener = NeonBracketsDocumentListener(editor)
-                    editor.putUserData(NeonBracketsEditorListener.DOCUMENT_LISTENER, docListener)
+                    editor.putUserData(DOCUMENT_LISTENER, docListener)
                     editor.document.addDocumentListener(docListener)
 
                     // Apply highlighting
-                    NeonBracketsEditorListener.highlightBracketsInEditor(editor)
+                    highlightBracketsInEditor(editor)
                 }
             }
         }
@@ -178,7 +178,7 @@ class NeonBracketsDocumentListener(private val editor: Editor) : DocumentListene
 
         // Use invokeLater to avoid UI freezes during typing
         ApplicationManager.getApplication().invokeLater {
-            NeonBracketsEditorListener.highlightBracketsInEditor(editor)
+            highlightBracketsInEditor(editor)
         }
     }
 }
@@ -214,8 +214,12 @@ class NeonBracketsEditorListener : EditorFactoryListener {
         // Add document listener to update highlighting when document changes
         editor.document.addDocumentListener(docListener)
 
-        // Directly highlight brackets when editor is created
-        highlightBracketsInEditor(editor)
+        // Apply highlighting immediately
+        ApplicationManager.getApplication().invokeLater {
+            highlightBracketsInEditor(editor)
+        }
+
+        println("[NeonBrackets] Added document listener and applied highlighting for file: ${file.name}")
     }
 
     override fun editorReleased(event: EditorFactoryEvent) {
@@ -242,132 +246,6 @@ class NeonBracketsEditorListener : EditorFactoryListener {
         editor.putUserData(SKIP_BRACKET_HIGHLIGHTING, null)
     }
 
-    companion object {
-        val BRACKET_HIGHLIGHTERS = Key<List<RangeHighlighter>>("NEON_BRACKET_HIGHLIGHTERS")
-        val SKIP_BRACKET_HIGHLIGHTING = Key<Boolean>("NEON_SKIP_BRACKET_HIGHLIGHTING")
-        val DOCUMENT_LISTENER = Key<DocumentListener>("NEON_DOCUMENT_LISTENER")
-
-        // Pastel colors that are easier on the eyes
-        private val BRACKET_COLORS = listOf(
-            Color(255, 179, 186),  // Pastel Pink
-            Color(186, 225, 255),  // Pastel Blue
-            Color(186, 255, 201),  // Pastel Green
-            Color(255, 223, 186),  // Pastel Orange
-            Color(225, 186, 255),  // Pastel Purple
-            Color(255, 255, 186)   // Pastel Yellow
-        )
-
-        private val bracketPairs = listOf(
-            Pair('(', ')'),
-            Pair('{', '}'),
-            Pair('<', '>'),
-            Pair('[', ']')
-        )
-
-        /**
-         * Get the current IDE product name
-         */
-        fun getIdeProductName(): String {
-            return try {
-                val appInfo = Class.forName("com.intellij.openapi.application.ApplicationInfo")
-                val instance = appInfo.getMethod("getInstance").invoke(null)
-                val productName = appInfo.getMethod("getFullProductName").invoke(instance) as String
-                productName
-            } catch (e: Exception) {
-                "Unknown IDE"
-            }
-        }
-
-        /**
-         * Directly highlight brackets in the editor without using a highlighting pass.
-         */
-        fun highlightBracketsInEditor(editor: Editor) {
-            try {
-                println("[NeonBrackets] Directly highlighting brackets in editor")
-
-                // Remove any existing highlighters
-                val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
-                existingHighlighters.forEach {
-                    try {
-                        it.dispose()
-                    } catch (e: Exception) {
-                        println("[NeonBrackets] Error disposing highlighter: ${e.message}")
-                    }
-                }
-
-                val text = editor.document.charsSequence
-                val stacks = mutableMapOf<Char, MutableList<Int>>()
-                val bracketMatches = mutableListOf<Triple<Int, Int, Int>>() // openPos, closePos, nestingLevel
-
-                // Initialize stacks for each bracket type
-                bracketPairs.forEach { (open, _) ->
-                    stacks[open] = mutableListOf()
-                }
-
-                // Find matching brackets
-                for (i in text.indices) {
-                    val char = text[i]
-
-                    for ((open, close) in bracketPairs) {
-                        if (char == open) {
-                            // Found opening bracket
-                            stacks[open]?.add(i)
-                        } else if (char == close && stacks[open]?.isNotEmpty() == true) {
-                            // Found closing bracket with matching opening bracket
-                            val openPos = stacks[open]?.removeAt(stacks[open]?.size!! - 1) ?: continue
-                            val level = stacks[open]?.size ?: 0
-                            bracketMatches.add(Triple(openPos, i, level))
-                        }
-                    }
-                }
-
-                println("[NeonBrackets] Found ${bracketMatches.size} bracket pairs")
-
-                // Apply highlighters
-                val newHighlighters = mutableListOf<RangeHighlighter>()
-                val markupModel = editor.markupModel
-
-                for ((openPos, closePos, level) in bracketMatches) {
-                    val colorIndex = level % BRACKET_COLORS.size
-                    val color = BRACKET_COLORS[colorIndex]
-
-                    val attributes = TextAttributes().apply {
-                        foregroundColor = color
-                        fontType = Font.BOLD
-                    }
-
-                    try {
-                        // Highlight opening bracket
-                        val openHighlighter = markupModel.addRangeHighlighter(
-                            openPos, openPos + 1,
-                            HighlighterLayer.SELECTION + 100, // Use a very high layer
-                            attributes,
-                            HighlighterTargetArea.EXACT_RANGE
-                        )
-
-                        // Highlight closing bracket
-                        val closeHighlighter = markupModel.addRangeHighlighter(
-                            closePos, closePos + 1,
-                            HighlighterLayer.SELECTION + 100,
-                            attributes,
-                            HighlighterTargetArea.EXACT_RANGE
-                        )
-
-                        newHighlighters.add(openHighlighter)
-                        newHighlighters.add(closeHighlighter)
-                    } catch (e: Exception) {
-                        println("[NeonBrackets] Error adding highlighter: ${e.message}")
-                    }
-                }
-
-                editor.putUserData(BRACKET_HIGHLIGHTERS, newHighlighters)
-                println("[NeonBrackets] Applied ${newHighlighters.size} highlighters")
-            } catch (e: Exception) {
-                println("[NeonBrackets] Error highlighting brackets: ${e.message}")
-                e.printStackTrace()
-            }
-        }
-    }
 }
 
 /**
@@ -399,7 +277,7 @@ class NeonBracketsFactory : TextEditorHighlightingPassFactoryRegistrar, Persiste
         registrar.registerTextEditorHighlightingPass(
             object : TextEditorHighlightingPassFactory {
                 override fun createHighlightingPass(file: PsiFile, editor: Editor): TextEditorHighlightingPass? {
-                    if (!state.enabled || editor.getUserData(NeonBracketsEditorListener.SKIP_BRACKET_HIGHLIGHTING) == true) {
+                    if (!state.enabled || editor.getUserData(SKIP_BRACKET_HIGHLIGHTING) == true) {
                         return null
                     }
 
@@ -432,10 +310,135 @@ class NeonBracketsPass(
 ) : TextEditorHighlightingPass(file.project, editor.document, true) {
     override fun doCollectInformation(progress: ProgressIndicator) {
         // Directly highlight brackets instead of collecting information
-        NeonBracketsEditorListener.highlightBracketsInEditor(editor)
+        highlightBracketsInEditor(editor)
     }
 
     override fun doApplyInformationToEditor() {
         // Nothing to do here as we've already applied the highlighting in doCollectInformation
+    }
+}
+
+val BRACKET_HIGHLIGHTERS = Key<List<RangeHighlighter>>("NEON_BRACKET_HIGHLIGHTERS")
+val SKIP_BRACKET_HIGHLIGHTING = Key<Boolean>("NEON_SKIP_BRACKET_HIGHLIGHTING")
+val DOCUMENT_LISTENER = Key<DocumentListener>("NEON_DOCUMENT_LISTENER")
+
+// Pastel colors that are easier on the eyes
+private val BRACKET_COLORS = listOf(
+    JBColor(java.awt.Color(255, 179, 186), java.awt.Color(200, 140, 145)),  // Pastel Pink
+    JBColor(java.awt.Color(186, 225, 255), java.awt.Color(140, 175, 200)),  // Pastel Blue
+    JBColor(java.awt.Color(186, 255, 201), java.awt.Color(140, 200, 155)),  // Pastel Green
+    JBColor(java.awt.Color(255, 223, 186), java.awt.Color(200, 175, 140)),  // Pastel Orange
+    JBColor(java.awt.Color(225, 186, 255), java.awt.Color(175, 140, 200)),  // Pastel Purple
+    JBColor(java.awt.Color(255, 255, 186), java.awt.Color(200, 200, 140))   // Pastel Yellow
+)
+
+private val bracketPairs = listOf(
+    Pair('(', ')'),
+    Pair('{', '}'),
+    Pair('<', '>'),
+    Pair('[', ']')
+)
+
+/**
+ * Get the current IDE product name
+ */
+fun getIdeProductName(): String {
+    return try {
+        val appInfo = Class.forName("com.intellij.openapi.application.ApplicationInfo")
+        val instance = appInfo.getMethod("getInstance").invoke(null)
+        val productName = appInfo.getMethod("getFullProductName").invoke(instance) as String
+        productName
+    } catch (e: Exception) {
+        "Unknown IDE"
+    }
+}
+
+/**
+ * Directly highlight brackets in the editor without using a highlighting pass.
+ */
+fun highlightBracketsInEditor(editor: Editor) {
+    try {
+        println("[NeonBrackets] Directly highlighting brackets in editor")
+
+        // Remove any existing highlighters
+        val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
+        existingHighlighters.forEach {
+            try {
+                it.dispose()
+            } catch (e: Exception) {
+                println("[NeonBrackets] Error disposing highlighter: ${e.message}")
+            }
+        }
+
+        val text = editor.document.charsSequence
+        val stacks = mutableMapOf<Char, MutableList<Int>>()
+        val bracketMatches = mutableListOf<Triple<Int, Int, Int>>() // openPos, closePos, nestingLevel
+
+        // Initialize stacks for each bracket type
+        bracketPairs.forEach { (open, _) ->
+            stacks[open] = mutableListOf()
+        }
+
+        // Find matching brackets
+        for (i in text.indices) {
+            val char = text[i]
+
+            for ((open, close) in bracketPairs) {
+                if (char == open) {
+                    // Found opening bracket
+                    stacks[open]?.add(i)
+                } else if (char == close && stacks[open]?.isNotEmpty() == true) {
+                    // Found closing bracket with matching opening bracket
+                    val openPos = stacks[open]?.removeAt(stacks[open]?.size!! - 1) ?: continue
+                    val level = stacks[open]?.size ?: 0
+                    bracketMatches.add(Triple(openPos, i, level))
+                }
+            }
+        }
+
+        println("[NeonBrackets] Found ${bracketMatches.size} bracket pairs")
+
+        // Apply highlighters
+        val newHighlighters = mutableListOf<RangeHighlighter>()
+        val markupModel = editor.markupModel
+
+        for ((openPos, closePos, level) in bracketMatches) {
+            val colorIndex = level % BRACKET_COLORS.size
+            val color = BRACKET_COLORS[colorIndex]
+
+            val attributes = TextAttributes().apply {
+                foregroundColor = color
+                fontType = Font.BOLD
+            }
+
+            try {
+                // Highlight opening bracket
+                val openHighlighter = markupModel.addRangeHighlighter(
+                    openPos, openPos + 1,
+                    HighlighterLayer.SELECTION + 100, // Use a very high layer
+                    attributes,
+                    HighlighterTargetArea.EXACT_RANGE
+                )
+
+                // Highlight closing bracket
+                val closeHighlighter = markupModel.addRangeHighlighter(
+                    closePos, closePos + 1,
+                    HighlighterLayer.SELECTION + 100,
+                    attributes,
+                    HighlighterTargetArea.EXACT_RANGE
+                )
+
+                newHighlighters.add(openHighlighter)
+                newHighlighters.add(closeHighlighter)
+            } catch (e: Exception) {
+                println("[NeonBrackets] Error adding highlighter: ${e.message}")
+            }
+        }
+
+        editor.putUserData(BRACKET_HIGHLIGHTERS, newHighlighters)
+        println("[NeonBrackets] Applied ${newHighlighters.size} highlighters")
+    } catch (e: Exception) {
+        println("[NeonBrackets] Error highlighting brackets: ${e.message}")
+        e.printStackTrace()
     }
 }

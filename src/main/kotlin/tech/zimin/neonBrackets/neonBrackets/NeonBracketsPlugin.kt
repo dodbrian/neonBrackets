@@ -14,6 +14,8 @@ import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.event.EditorFactoryEvent
 import com.intellij.openapi.editor.event.EditorFactoryListener
+import com.intellij.openapi.editor.event.SelectionEvent
+import com.intellij.openapi.editor.event.SelectionListener
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
@@ -77,8 +79,15 @@ class NeonBracketsStartupActivity : StartupActivity {
                     editor.document.addDocumentListener(docListener)
                 }
 
+                // Add selection listener if not already added
+                if (editor.getUserData(SELECTION_LISTENER) == null) {
+                    val selectionListener = NeonBracketsSelectionListener(editor)
+                    editor.putUserData(SELECTION_LISTENER, selectionListener)
+                    editor.selectionModel.addSelectionListener(selectionListener)
+                }
+
                 // Apply highlighting
-                highlightBracketsInEditor(editor)
+                highlightBracketsInEditor(editor, true)
             }
         }
     }
@@ -124,8 +133,13 @@ class NeonBracketsInitializer : StartupActivity, DumbAware {
                 editor.putUserData(DOCUMENT_LISTENER, docListener)
                 editor.document.addDocumentListener(docListener)
 
+                // Add selection listener
+                val selectionListener = NeonBracketsSelectionListener(editor)
+                editor.putUserData(SELECTION_LISTENER, selectionListener)
+                editor.selectionModel.addSelectionListener(selectionListener)
+
                 // Apply highlighting
-                highlightBracketsInEditor(editor)
+                highlightBracketsInEditor(editor, true)
             }
         }
     }
@@ -166,8 +180,13 @@ class NeonBracketsApplicationInitializer {
                     editor.putUserData(DOCUMENT_LISTENER, docListener)
                     editor.document.addDocumentListener(docListener)
 
+                    // Add selection listener
+                    val selectionListener = NeonBracketsSelectionListener(editor)
+                    editor.putUserData(SELECTION_LISTENER, selectionListener)
+                    editor.selectionModel.addSelectionListener(selectionListener)
+
                     // Apply highlighting
-                    highlightBracketsInEditor(editor)
+                    highlightBracketsInEditor(editor, true)
                 }
             }
         }
@@ -183,7 +202,22 @@ class NeonBracketsDocumentListener(private val editor: Editor) : DocumentListene
 
         // Use invokeLater to avoid UI freezes during typing
         ApplicationManager.getApplication().invokeLater {
-            highlightBracketsInEditor(editor)
+            highlightBracketsInEditor(editor, true) // Force full rehighlight on document change
+        }
+    }
+}
+
+/**
+ * Selection listener that updates bracket highlighting when the cursor moves.
+ */
+class NeonBracketsSelectionListener(private val editor: Editor) : SelectionListener {
+    override fun selectionChanged(e: SelectionEvent) {
+        // Only update if cursor moved (not if text was selected)
+        if (e.newRange.isEmpty && e.oldRange.isEmpty) {
+            ApplicationManager.getApplication().invokeLater {
+                // Don't force rehighlight on cursor movement
+                highlightBracketsInEditor(editor, false)
+            }
         }
     }
 }
@@ -218,10 +252,17 @@ class NeonBracketsEditorListener : EditorFactoryListener {
 
         // Add document listener to update highlighting when document changes
         editor.document.addDocumentListener(docListener)
+        
+        // Store the selection listener so we can remove it later
+        val selectionListener = NeonBracketsSelectionListener(editor)
+        editor.putUserData(SELECTION_LISTENER, selectionListener)
+
+        // Add selection listener to update highlighting when cursor moves
+        editor.selectionModel.addSelectionListener(selectionListener)
 
         // Apply highlighting immediately
         ApplicationManager.getApplication().invokeLater {
-            highlightBracketsInEditor(editor)
+            highlightBracketsInEditor(editor, true)
         }
 
         println("[NeonBrackets] Added document listener and applied highlighting for file: ${file.name}")
@@ -235,6 +276,13 @@ class NeonBracketsEditorListener : EditorFactoryListener {
         if (listener != null) {
             editor.document.removeDocumentListener(listener)
             editor.putUserData(DOCUMENT_LISTENER, null)
+        }
+        
+        // Remove selection listener
+        val selectionListener = editor.getUserData(SELECTION_LISTENER)
+        if (selectionListener != null) {
+            editor.selectionModel.removeSelectionListener(selectionListener)
+            editor.putUserData(SELECTION_LISTENER, null)
         }
 
         // Clean up any existing highlighters
@@ -250,7 +298,6 @@ class NeonBracketsEditorListener : EditorFactoryListener {
         editor.putUserData(BRACKET_HIGHLIGHTERS, null)
         editor.putUserData(SKIP_BRACKET_HIGHLIGHTING, null)
     }
-
 }
 
 /**
@@ -315,7 +362,7 @@ class NeonBracketsPass(
 ) : TextEditorHighlightingPass(file.project, editor.document, true) {
     override fun doCollectInformation(progress: ProgressIndicator) {
         // Directly highlight brackets instead of collecting information
-        highlightBracketsInEditor(editor)
+        highlightBracketsInEditor(editor, false)
     }
 
     override fun doApplyInformationToEditor() {
@@ -326,6 +373,7 @@ class NeonBracketsPass(
 val BRACKET_HIGHLIGHTERS = Key<List<RangeHighlighter>>("NEON_BRACKET_HIGHLIGHTERS")
 val SKIP_BRACKET_HIGHLIGHTING = Key<Boolean>("NEON_SKIP_BRACKET_HIGHLIGHTING")
 val DOCUMENT_LISTENER = Key<DocumentListener>("NEON_DOCUMENT_LISTENER")
+val SELECTION_LISTENER = Key<SelectionListener>("NEON_SELECTION_LISTENER")
 
 // More vibrant and distinct colors for better visibility of neighboring brackets
 private val BRACKET_COLORS = listOf(
@@ -365,17 +413,26 @@ fun getIdeProductName(): String {
 /**
  * Directly highlight brackets in the editor without using a highlighting pass.
  */
-fun highlightBracketsInEditor(editor: Editor) {
+fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
     try {
         println("[NeonBrackets] Directly highlighting brackets in editor")
 
-        // Remove any existing highlighters
-        val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
-        existingHighlighters.forEach {
-            try {
-                it.dispose()
-            } catch (e: Exception) {
-                println("[NeonBrackets] Error disposing highlighter: ${e.message}")
+        // Remove any existing highlighters if we're forcing a rehighlight
+        if (forceRehighlight) {
+            val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
+            existingHighlighters.forEach {
+                try {
+                    it.dispose()
+                } catch (e: Exception) {
+                    println("[NeonBrackets] Error disposing highlighter: ${e.message}")
+                }
+            }
+        } else {
+            // If not forcing rehighlight (e.g., just cursor movement), keep existing highlighters
+            val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS)
+            if (existingHighlighters != null && existingHighlighters.isNotEmpty()) {
+                // Just return if we already have highlighters and this is just a cursor movement
+                return
             }
         }
 

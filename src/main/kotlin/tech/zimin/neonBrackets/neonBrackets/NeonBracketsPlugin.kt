@@ -483,21 +483,19 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
 
         // Check if file type is excluded
         val file = FileDocumentManager.getInstance().getFile(editor.document)
-        if (file != null) {
-            if (isFileTypeExcluded(file)) {
-                println("[NeonBrackets] File ${file.name} is excluded, skipping highlighting")
-                // Remove any existing highlighters for excluded file types
-                val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
-                existingHighlighters.forEach {
-                    try {
-                        it.dispose()
-                    } catch (_: Exception) {
-                        // Silent exception handling
-                    }
+        if (file != null && isFileTypeExcluded(file)) {
+            println("[NeonBrackets] File ${file.name} is excluded, skipping highlighting")
+            // Remove any existing highlighters for excluded file types
+            val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
+            existingHighlighters.forEach {
+                try {
+                    it.dispose()
+                } catch (_: Exception) {
+                    // Silent exception handling
                 }
-                editor.putUserData(BRACKET_HIGHLIGHTERS, emptyList())
-                return
             }
+            editor.putUserData(BRACKET_HIGHLIGHTERS, emptyList())
+            return
         }
 
         // Remove any existing highlighters if we're forcing a rehighlight

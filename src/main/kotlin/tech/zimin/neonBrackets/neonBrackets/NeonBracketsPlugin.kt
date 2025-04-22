@@ -23,7 +23,10 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.openapi.startup.StartupActivity
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
@@ -107,6 +110,22 @@ class NeonBracketsInitializer : StartupActivity, DumbAware {
     override fun runActivity(project: Project) {
         println("[NeonBrackets] Initializing NeonBrackets for project: ${project.name}")
 
+        // Create a dedicated disposable for our plugin's resources
+        val pluginDisposable = Disposer.newDisposable("NeonBracketsPluginDisposable")
+        
+        // Get a connection from the project's message bus
+        val connection = project.messageBus.connect(pluginDisposable)
+        
+        // Listen for project closing events to clean up our resources
+        connection.subscribe(ProjectManager.TOPIC, object : ProjectManagerListener {
+            override fun projectClosing(closingProject: Project) {
+                if (project == closingProject) {
+                    println("[NeonBrackets] Project closing, disposing resources: ${project.name}")
+                    Disposer.dispose(pluginDisposable)
+                }
+            }
+        })
+        
         // Register editor factory listener to catch new editors
         val listener = object : EditorFactoryListener {
             override fun editorCreated(event: EditorFactoryEvent) {
@@ -124,7 +143,9 @@ class NeonBracketsInitializer : StartupActivity, DumbAware {
             }
         }
 
-        EditorFactory.getInstance().addEditorFactoryListener(listener, project)
+        // Register the listener with EditorFactory using our disposable
+        // This is the non-deprecated way to register the listener
+        EditorFactory.getInstance().addEditorFactoryListener(listener, pluginDisposable)
         editorFactoryListener = listener
 
         // Process all open editors immediately

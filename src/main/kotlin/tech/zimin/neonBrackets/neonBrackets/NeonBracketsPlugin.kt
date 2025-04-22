@@ -417,13 +417,13 @@ private fun getBracketColors(): List<JBColor> {
 
     return settings.bracketColorsLight.mapIndexed { index, lightColor ->
         JBColor(
-            parseColor(lightColor, Color(255, 105, 180)),
-            parseColor(settings.bracketColorsDark[index], Color(220, 90, 150))
+            parseColor(lightColor, JBColor(0xFF69B4, 0xDC5A96)), // Hot Pink
+            parseColor(settings.bracketColorsDark[index], JBColor(0xDC5A96, 0xFF69B4)) // Dark Hot Pink
         )
     }
 }
 
-private fun parseColor(colorStr: String, defaultColor: Color): Color {
+private fun parseColor(colorStr: String, defaultColor: JBColor): Color {
     return try {
         Color.decode(colorStr)
     } catch (_: Exception) {
@@ -841,7 +841,7 @@ class NeonBracketsSettingsComponent : Configurable {
         val excludedFileTypesPanel = JPanel(BorderLayout())
         excludedFileTypesPanel.add(JBLabel("Excluded File Types (comma-separated):"), BorderLayout.NORTH)
         excludedFileTypesField = JBTextField()
-        excludedFileTypesPanel.add(excludedFileTypesField, BorderLayout.CENTER)
+        excludedFileTypesPanel.add(excludedFileTypesField!!, BorderLayout.CENTER)
         optionsPanel.add(excludedFileTypesPanel)
 
         mainPanel.add(optionsPanel)
@@ -866,7 +866,7 @@ class NeonBracketsSettingsComponent : Configurable {
         val initialColor = try {
             Color.decode(textField.text)
         } catch (_: Exception) {
-            Color.WHITE
+            JBColor.WHITE
         }
 
         val color = JColorChooser.showDialog(myPanel, "Choose Color", initialColor)

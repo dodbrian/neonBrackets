@@ -393,7 +393,7 @@ class NeonBracketsFactory : TextEditorHighlightingPassFactoryRegistrar, Persiste
  * Highlighting pass that colorizes matching brackets.
  */
 class NeonBracketsPass(
-    private val file: PsiFile,
+    file: PsiFile,
     private val editor: Editor
 ) : TextEditorHighlightingPass(file.project, editor.document, true) {
     override fun doCollectInformation(progress: ProgressIndicator) {
@@ -417,16 +417,16 @@ private fun getBracketColors(): List<JBColor> {
 
     return settings.bracketColorsLight.mapIndexed { index, lightColor ->
         JBColor(
-            parseColor(lightColor, java.awt.Color(255, 105, 180)),
-            parseColor(settings.bracketColorsDark[index], java.awt.Color(220, 90, 150))
+            parseColor(lightColor, Color(255, 105, 180)),
+            parseColor(settings.bracketColorsDark[index], Color(220, 90, 150))
         )
     }
 }
 
-private fun parseColor(colorStr: String, defaultColor: java.awt.Color): java.awt.Color {
+private fun parseColor(colorStr: String, defaultColor: Color): Color {
     return try {
         Color.decode(colorStr)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         defaultColor
     }
 }
@@ -467,7 +467,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
             existingHighlighters.forEach {
                 try {
                     it.dispose()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Silent exception handling
                 }
             }
@@ -485,7 +485,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
                 existingHighlighters.forEach {
                     try {
                         it.dispose()
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Silent exception handling
                     }
                 }
@@ -500,7 +500,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
             existingHighlighters.forEach {
                 try {
                     it.dispose()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Silent exception handling
                 }
             }
@@ -716,7 +716,7 @@ fun getIdeProductName(): String {
         val instance = appInfo.getMethod("getInstance").invoke(null)
         val productName = appInfo.getMethod("getFullProductName").invoke(instance) as String
         productName
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "Unknown IDE"
     }
 }
@@ -865,7 +865,7 @@ class NeonBracketsSettingsComponent : Configurable {
     private fun pickColor(textField: JBTextField, button: JButton) {
         val initialColor = try {
             Color.decode(textField.text)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Color.WHITE
         }
 
@@ -1022,7 +1022,7 @@ class NeonBracketsSettingsComponent : Configurable {
             for ((index, button) in bracketColorsDarkButtons) {
                 button.background = Color.decode(bracketColorsDarkFields[index].text)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore color parsing errors
         }
     }
@@ -1037,7 +1037,7 @@ class NeonBracketsSettingsComponent : Configurable {
             existingHighlighters?.forEach {
                 try {
                     it.dispose()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Silent exception handling
                 }
             }
@@ -1085,7 +1085,7 @@ fun refreshAllEditors() {
         existingHighlighters?.forEach {
             try {
                 it.dispose()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Silent exception handling
             }
         }

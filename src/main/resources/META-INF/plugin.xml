@@ -33,7 +33,20 @@
         <editorFactoryListener implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsEditorListener"/>
         <!-- Register startup activity -->
         <postStartupActivity implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"/>
+        <!-- Register settings page -->
+        <applicationConfigurable instance="tech.zimin.neonBrackets.neonBrackets.NeonBracketsSettingsComponent"/>
     </extensions>
+    
+    <!-- Register actions -->
+    <actions>
+        <action id="tech.zimin.neonBrackets.ToggleNeonBracketsAction" 
+                class="tech.zimin.neonBrackets.neonBrackets.ToggleNeonBracketsAction"
+                text="Toggle Neon Brackets"
+                description="Toggle Neon Brackets highlighting on/off">
+            <add-to-group group-id="EditMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl alt B"/>
+        </action>
+    </actions>
     
     <!-- No longer needed as we're using StartupActivity -->
     <!-- <projectListeners>

@@ -1,53 +1,46 @@
 package tech.zimin.neonBrackets.neonBrackets
 
+import com.intellij.codeHighlighting.TextEditorHighlightingPass
 import com.intellij.codeHighlighting.TextEditorHighlightingPassFactory
 import com.intellij.codeHighlighting.TextEditorHighlightingPassFactoryRegistrar
 import com.intellij.codeHighlighting.TextEditorHighlightingPassRegistrar
-import com.intellij.codeHighlighting.TextEditorHighlightingPass
+import com.intellij.lang.LanguageParserDefinitions
+import com.intellij.lexer.Lexer
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
-import com.intellij.openapi.editor.event.DocumentEvent
-import com.intellij.openapi.editor.event.DocumentListener
-import com.intellij.openapi.editor.event.EditorFactoryEvent
-import com.intellij.openapi.editor.event.EditorFactoryListener
-import com.intellij.openapi.editor.event.SelectionEvent
-import com.intellij.openapi.editor.event.SelectionListener
+import com.intellij.openapi.editor.event.*
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.Key
-import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiDocumentManager
-import com.intellij.lexer.Lexer
-import com.intellij.psi.tree.IElementType
+import com.intellij.psi.PsiFile
 import com.intellij.psi.TokenType
-import com.intellij.lang.LanguageParserDefinitions
+import com.intellij.psi.tree.IElementType
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
-import com.intellij.util.ui.FormBuilder
-import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Font
 import java.awt.GridLayout
 import javax.swing.*
 import javax.swing.border.TitledBorder
-import com.intellij.openapi.actionSystem.*
 
 /**
  * Startup activity that runs when the IDE starts.
@@ -266,7 +259,7 @@ class NeonBracketsEditorListener : EditorFactoryListener {
 
         // Add document listener to update highlighting when document changes
         editor.document.addDocumentListener(docListener)
-        
+
         // Store the selection listener so we can remove it later
         val selectionListener = NeonBracketsSelectionListener(editor)
         editor.putUserData(SELECTION_LISTENER, selectionListener)
@@ -291,7 +284,7 @@ class NeonBracketsEditorListener : EditorFactoryListener {
             editor.document.removeDocumentListener(listener)
             editor.putUserData(DOCUMENT_LISTENER, null)
         }
-        
+
         // Remove selection listener
         val selectionListener = editor.getUserData(SELECTION_LISTENER)
         if (selectionListener != null) {
@@ -319,13 +312,13 @@ class NeonBracketsEditorListener : EditorFactoryListener {
  */
 data class NeonBracketsState(
     var enabled: Boolean = true,
-    
+
     // Bracket type toggles
     var enableRoundBrackets: Boolean = true,
     var enableCurlyBrackets: Boolean = true,
     var enableAngleBrackets: Boolean = true,
     var enableSquareBrackets: Boolean = true,
-    
+
     // Colors (stored as hex strings)
     var bracketColorsLight: List<String> = listOf(
         "#FF69B4", // Hot Pink
@@ -335,7 +328,7 @@ data class NeonBracketsState(
         "#8A2BE2", // Blue Violet
         "#1E90FF"  // Dodger Blue
     ),
-    
+
     var bracketColorsDark: List<String> = listOf(
         "#DC5A96", // Dark Hot Pink
         "#375ABE", // Dark Royal Blue
@@ -344,10 +337,10 @@ data class NeonBracketsState(
         "#7828BE", // Dark Blue Violet
         "#1978D2"  // Dark Dodger Blue
     ),
-    
+
     // Excluded file types (comma-separated)
     var excludedFileTypes: String = "",
-    
+
     // Skip comments and strings
     var skipCommentsAndStrings: Boolean = true
 )
@@ -372,15 +365,13 @@ class NeonBracketsFactory : TextEditorHighlightingPassFactoryRegistrar, Persiste
         println("[NeonBrackets] Registering highlighting pass factory for project: ${project.name}")
 
         registrar.registerTextEditorHighlightingPass(
-            object : TextEditorHighlightingPassFactory {
-                override fun createHighlightingPass(file: PsiFile, editor: Editor): TextEditorHighlightingPass? {
-                    if (!state.enabled || editor.getUserData(SKIP_BRACKET_HIGHLIGHTING) == true) {
-                        return null
-                    }
-
-                    println("[NeonBrackets] Creating highlighting pass for file: ${file.name}")
-                    return NeonBracketsPass(file, editor)
+            TextEditorHighlightingPassFactory { file, editor ->
+                if (!state.enabled || editor.getUserData(SKIP_BRACKET_HIGHLIGHTING) == true) {
+                    return@TextEditorHighlightingPassFactory null
                 }
+
+                println("[NeonBrackets] Creating highlighting pass for file: ${file.name}")
+                NeonBracketsPass(file, editor)
             },
             null,
             null,
@@ -423,7 +414,7 @@ val SELECTION_LISTENER = Key<SelectionListener>("NEON_SELECTION_LISTENER")
 // Update the global BRACKET_COLORS to use dynamic colors from settings
 private fun getBracketColors(): List<JBColor> {
     val settings = NeonBracketsFactory.getInstance().state
-    
+
     return settings.bracketColorsLight.mapIndexed { index, lightColor ->
         JBColor(
             parseColor(lightColor, java.awt.Color(255, 105, 180)),
@@ -444,12 +435,12 @@ private fun parseColor(colorStr: String, defaultColor: java.awt.Color): java.awt
 private fun getActiveBracketPairs(): List<Pair<Char, Char>> {
     val settings = NeonBracketsFactory.getInstance().state
     val activePairs = mutableListOf<Pair<Char, Char>>()
-    
+
     if (settings.enableRoundBrackets) activePairs.add(Pair('(', ')'))
     if (settings.enableCurlyBrackets) activePairs.add(Pair('{', '}'))
     if (settings.enableAngleBrackets) activePairs.add(Pair('<', '>'))
     if (settings.enableSquareBrackets) activePairs.add(Pair('[', ']'))
-    
+
     return activePairs
 }
 
@@ -457,7 +448,7 @@ private fun getActiveBracketPairs(): List<Pair<Char, Char>> {
 private fun isFileTypeExcluded(fileType: String): Boolean {
     val settings = NeonBracketsFactory.getInstance().state
     if (settings.excludedFileTypes.isBlank()) return false
-    
+
     val excludedTypes = settings.excludedFileTypes.split(",").map { it.trim().lowercase() }
     return fileType.lowercase() in excludedTypes
 }
@@ -468,7 +459,7 @@ private fun isFileTypeExcluded(fileType: String): Boolean {
 fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
     try {
         val settings = NeonBracketsFactory.getInstance().state
-        
+
         // Skip if plugin is disabled
         if (!settings.enabled) {
             // Remove any existing highlighters if we're disabling
@@ -483,7 +474,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
             editor.putUserData(BRACKET_HIGHLIGHTERS, emptyList())
             return
         }
-        
+
         // Check if file type is excluded
         val file = FileDocumentManager.getInstance().getFile(editor.document)
         if (file != null) {
@@ -502,7 +493,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
                 return
             }
         }
-        
+
         // Remove any existing highlighters if we're forcing a rehighlight
         if (forceRehighlight) {
             val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
@@ -516,7 +507,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
         } else {
             // If not forcing rehighlight (e.g., just cursor movement), keep existing highlighters
             val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS)
-            if (existingHighlighters != null && existingHighlighters.isNotEmpty()) {
+            if (!existingHighlighters.isNullOrEmpty()) {
                 // Just return if we already have highlighters and this is just a cursor movement
                 return
             }
@@ -525,10 +516,10 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
         val text = editor.document.charsSequence
         val stacks = mutableMapOf<Char, MutableList<Int>>()
         val bracketMatches = mutableListOf<Triple<Int, Int, Int>>() // openPos, closePos, nestingLevel
-        
+
         // Get active bracket pairs based on settings
         val activeBracketPairs = getActiveBracketPairs()
-        
+
         // Initialize stacks for each bracket type
         activeBracketPairs.forEach { (open, _) ->
             stacks[open] = mutableListOf()
@@ -561,10 +552,11 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
         // Find matching brackets
         for (i in text.indices) {
             val char = text[i]
-            
+
             // Skip if inside comment or string, but only if enabled and we have ranges
-            if (settings.skipCommentsAndStrings && commentAndStringRanges.isNotEmpty() && 
-                isInsideCommentOrString(i, commentAndStringRanges)) {
+            if (settings.skipCommentsAndStrings && commentAndStringRanges.isNotEmpty() &&
+                isInsideCommentOrString(i, commentAndStringRanges)
+            ) {
                 continue
             }
 
@@ -576,13 +568,14 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
                 } else if (char == close && stacks[open]?.isNotEmpty() == true) {
                     // Found closing bracket with matching opening bracket
                     val openPos = stacks[open]?.removeAt(stacks[open]?.size!! - 1) ?: continue
-                    
+
                     // Skip if opening bracket is inside comment or string, but only if enabled and we have ranges
-                    if (settings.skipCommentsAndStrings && commentAndStringRanges.isNotEmpty() && 
-                        isInsideCommentOrString(openPos, commentAndStringRanges)) {
+                    if (settings.skipCommentsAndStrings && commentAndStringRanges.isNotEmpty() &&
+                        isInsideCommentOrString(openPos, commentAndStringRanges)
+                    ) {
                         continue
                     }
-                    
+
                     // Use the nesting level for coloring
                     val level = stacks[open]?.size ?: 0
                     bracketMatches.add(Triple(openPos, i, level))
@@ -595,7 +588,7 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
         // Apply highlighters
         val newHighlighters = mutableListOf<RangeHighlighter>()
         val markupModel = editor.markupModel
-        
+
         // Get bracket colors from settings
         val bracketColors = getBracketColors()
 
@@ -668,24 +661,24 @@ private fun getLexerForFile(file: PsiFile): Lexer? {
  */
 private fun getCommentAndStringRanges(lexer: Lexer, text: String): List<Pair<Int, Int>> {
     val ranges = mutableListOf<Pair<Int, Int>>()
-    
+
     try {
         lexer.start(text)
-        
+
         while (lexer.tokenType != null) {
             val tokenType = lexer.tokenType
-            
+
             // Check if token is a comment or string
             if (isCommentOrString(tokenType)) {
                 ranges.add(Pair(lexer.tokenStart, lexer.tokenEnd))
             }
-            
+
             lexer.advance()
         }
     } catch (e: Exception) {
         println("[NeonBrackets] Error processing lexer tokens: ${e.message}")
     }
-    
+
     return ranges
 }
 
@@ -694,12 +687,12 @@ private fun getCommentAndStringRanges(lexer: Lexer, text: String): List<Pair<Int
  */
 private fun isCommentOrString(tokenType: IElementType?): Boolean {
     if (tokenType == null) return false
-    
+
     val typeName = tokenType.toString().uppercase()
-    return typeName.contains("COMMENT") || 
-           typeName.contains("STRING") || 
-           typeName.contains("CHAR") ||
-           tokenType == TokenType.WHITE_SPACE
+    return typeName.contains("COMMENT") ||
+            typeName.contains("STRING") ||
+            typeName.contains("CHAR") ||
+            tokenType == TokenType.WHITE_SPACE
 }
 
 /**
@@ -738,63 +731,63 @@ class NeonBracketsSettingsComponent : Configurable {
     private var curlyBracketsCheckBox: JBCheckBox? = null
     private var angleBracketsCheckBox: JBCheckBox? = null
     private var squareBracketsCheckBox: JBCheckBox? = null
-    
+
     // Light theme colors
     private var bracketColorsLightFields = mutableListOf<JBTextField>()
     private var bracketColorsLightButtons = mutableMapOf<Int, JButton>()
-    
+
     // Dark theme colors
     private var bracketColorsDarkFields = mutableListOf<JBTextField>()
     private var bracketColorsDarkButtons = mutableMapOf<Int, JButton>()
-    
+
     private var excludedFileTypesField: JBTextField? = null
     private var skipCommentsAndStringsCheckBox: JBCheckBox? = null
-    
+
     override fun getDisplayName(): String = "Neon Brackets"
 
     override fun createComponent(): JComponent {
         myPanel = JPanel(BorderLayout())
-        
+
         // Main panel with all settings
         val mainPanel = JPanel()
         mainPanel.layout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
-        
+
         // Global enable/disable
         enabledCheckBox = JBCheckBox("Enable Neon Brackets")
         mainPanel.add(enabledCheckBox)
         mainPanel.add(Box.createVerticalStrut(10))
-        
+
         // Bracket types panel
         val bracketTypesPanel = JPanel(GridLayout(4, 1))
         bracketTypesPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Bracket Types", 
+            BorderFactory.createEtchedBorder(), "Bracket Types",
             TitledBorder.LEFT, TitledBorder.TOP
         )
-        
+
         roundBracketsCheckBox = JBCheckBox("Round Brackets ( )")
         curlyBracketsCheckBox = JBCheckBox("Curly Brackets { }")
         angleBracketsCheckBox = JBCheckBox("Angle Brackets < >")
         squareBracketsCheckBox = JBCheckBox("Square Brackets [ ]")
-        
+
         bracketTypesPanel.add(roundBracketsCheckBox)
         bracketTypesPanel.add(curlyBracketsCheckBox)
         bracketTypesPanel.add(angleBracketsCheckBox)
         bracketTypesPanel.add(squareBracketsCheckBox)
-        
+
         mainPanel.add(bracketTypesPanel)
         mainPanel.add(Box.createVerticalStrut(10))
-        
+
         // Light theme colors panel
         val lightColorsPanel = JPanel(GridLayout(7, 3))
         lightColorsPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Light Theme Colors", 
+            BorderFactory.createEtchedBorder(), "Light Theme Colors",
             TitledBorder.LEFT, TitledBorder.TOP
         )
-        
+
         lightColorsPanel.add(JBLabel("Nesting Level"))
         lightColorsPanel.add(JBLabel("Hex Color"))
         lightColorsPanel.add(JBLabel("Pick"))
-        
+
         for (i in 0 until 6) {
             lightColorsPanel.add(JBLabel("Level $i"))
             val field = JBTextField()
@@ -805,21 +798,21 @@ class NeonBracketsSettingsComponent : Configurable {
             button.addActionListener { pickColor(field, button) }
             lightColorsPanel.add(button)
         }
-        
+
         mainPanel.add(lightColorsPanel)
         mainPanel.add(Box.createVerticalStrut(10))
-        
+
         // Dark theme colors panel
         val darkColorsPanel = JPanel(GridLayout(7, 3))
         darkColorsPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Dark Theme Colors", 
+            BorderFactory.createEtchedBorder(), "Dark Theme Colors",
             TitledBorder.LEFT, TitledBorder.TOP
         )
-        
+
         darkColorsPanel.add(JBLabel("Nesting Level"))
         darkColorsPanel.add(JBLabel("Hex Color"))
         darkColorsPanel.add(JBLabel("Pick"))
-        
+
         for (i in 0 until 6) {
             darkColorsPanel.add(JBLabel("Level $i"))
             val field = JBTextField()
@@ -830,52 +823,52 @@ class NeonBracketsSettingsComponent : Configurable {
             button.addActionListener { pickColor(field, button) }
             darkColorsPanel.add(button)
         }
-        
+
         mainPanel.add(darkColorsPanel)
         mainPanel.add(Box.createVerticalStrut(10))
-        
+
         // Additional options panel
         val optionsPanel = JPanel()
         optionsPanel.layout = BoxLayout(optionsPanel, BoxLayout.Y_AXIS)
         optionsPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Additional Options", 
+            BorderFactory.createEtchedBorder(), "Additional Options",
             TitledBorder.LEFT, TitledBorder.TOP
         )
-        
+
         skipCommentsAndStringsCheckBox = JBCheckBox("Skip Comments and Strings")
         optionsPanel.add(skipCommentsAndStringsCheckBox)
-        
+
         val excludedFileTypesPanel = JPanel(BorderLayout())
         excludedFileTypesPanel.add(JBLabel("Excluded File Types (comma-separated):"), BorderLayout.NORTH)
         excludedFileTypesField = JBTextField()
         excludedFileTypesPanel.add(excludedFileTypesField, BorderLayout.CENTER)
         optionsPanel.add(excludedFileTypesPanel)
-        
+
         mainPanel.add(optionsPanel)
         mainPanel.add(Box.createVerticalStrut(10))
-        
+
         // Reset to defaults button
         val resetPanel = JPanel(BorderLayout())
         val resetButton = JButton("Reset to Defaults")
         resetButton.addActionListener { resetToDefaults() }
         resetPanel.add(resetButton, BorderLayout.EAST)
         mainPanel.add(resetPanel)
-        
+
         myPanel!!.add(mainPanel, BorderLayout.CENTER)
-        
+
         // Load current settings
         reset()
-        
+
         return myPanel!!
     }
-    
+
     private fun pickColor(textField: JBTextField, button: JButton) {
         val initialColor = try {
             Color.decode(textField.text)
         } catch (e: Exception) {
             Color.WHITE
         }
-        
+
         val color = JColorChooser.showDialog(myPanel, "Choose Color", initialColor)
         if (color != null) {
             val hexColor = String.format("#%02X%02X%02X", color.red, color.green, color.blue)
@@ -883,62 +876,64 @@ class NeonBracketsSettingsComponent : Configurable {
             button.background = color
         }
     }
-    
+
     override fun isModified(): Boolean {
         val settings = NeonBracketsFactory.getInstance().state
-        
+
         if (enabledCheckBox?.isSelected != settings.enabled) return true
         if (roundBracketsCheckBox?.isSelected != settings.enableRoundBrackets) return true
         if (curlyBracketsCheckBox?.isSelected != settings.enableCurlyBrackets) return true
         if (angleBracketsCheckBox?.isSelected != settings.enableAngleBrackets) return true
         if (squareBracketsCheckBox?.isSelected != settings.enableSquareBrackets) return true
-        
+
         // Check if any color has been modified
         for (i in bracketColorsLightFields.indices) {
-            if (i < settings.bracketColorsLight.size && 
-                bracketColorsLightFields[i].text != settings.bracketColorsLight[i]) {
+            if (i < settings.bracketColorsLight.size &&
+                bracketColorsLightFields[i].text != settings.bracketColorsLight[i]
+            ) {
                 return true
             }
         }
-        
+
         for (i in bracketColorsDarkFields.indices) {
-            if (i < settings.bracketColorsDark.size && 
-                bracketColorsDarkFields[i].text != settings.bracketColorsDark[i]) {
+            if (i < settings.bracketColorsDark.size &&
+                bracketColorsDarkFields[i].text != settings.bracketColorsDark[i]
+            ) {
                 return true
             }
         }
-        
+
         if (excludedFileTypesField?.text != settings.excludedFileTypes) return true
         if (skipCommentsAndStringsCheckBox?.isSelected != settings.skipCommentsAndStrings) return true
-        
+
         return false
     }
 
     override fun apply() {
         val settings = NeonBracketsFactory.getInstance().state
-        
+
         settings.enabled = enabledCheckBox?.isSelected ?: true
         settings.enableRoundBrackets = roundBracketsCheckBox?.isSelected ?: true
         settings.enableCurlyBrackets = curlyBracketsCheckBox?.isSelected ?: true
         settings.enableAngleBrackets = angleBracketsCheckBox?.isSelected ?: true
         settings.enableSquareBrackets = squareBracketsCheckBox?.isSelected ?: true
-        
+
         // Update color lists
         val lightColors = mutableListOf<String>()
         for (field in bracketColorsLightFields) {
             lightColors.add(field.text)
         }
         settings.bracketColorsLight = lightColors
-        
+
         val darkColors = mutableListOf<String>()
         for (field in bracketColorsDarkFields) {
             darkColors.add(field.text)
         }
         settings.bracketColorsDark = darkColors
-        
+
         settings.excludedFileTypes = excludedFileTypesField?.text ?: ""
         settings.skipCommentsAndStrings = skipCommentsAndStringsCheckBox?.isSelected ?: true
-        
+
         // Refresh all open editors
         ApplicationManager.getApplication().invokeLater {
             refreshAllEditors()
@@ -947,29 +942,29 @@ class NeonBracketsSettingsComponent : Configurable {
 
     override fun reset() {
         val settings = NeonBracketsFactory.getInstance().state
-        
+
         enabledCheckBox?.isSelected = settings.enabled
         roundBracketsCheckBox?.isSelected = settings.enableRoundBrackets
         curlyBracketsCheckBox?.isSelected = settings.enableCurlyBrackets
         angleBracketsCheckBox?.isSelected = settings.enableAngleBrackets
         squareBracketsCheckBox?.isSelected = settings.enableSquareBrackets
-        
+
         // Reset color fields
         for (i in bracketColorsLightFields.indices) {
             if (i < settings.bracketColorsLight.size) {
                 bracketColorsLightFields[i].text = settings.bracketColorsLight[i]
             }
         }
-        
+
         for (i in bracketColorsDarkFields.indices) {
             if (i < settings.bracketColorsDark.size) {
                 bracketColorsDarkFields[i].text = settings.bracketColorsDark[i]
             }
         }
-        
+
         excludedFileTypesField?.text = settings.excludedFileTypes
         skipCommentsAndStringsCheckBox?.isSelected = settings.skipCommentsAndStrings
-        
+
         // Update button colors
         updateButtonColors()
     }
@@ -977,16 +972,16 @@ class NeonBracketsSettingsComponent : Configurable {
     override fun disposeUIResources() {
         myPanel = null
     }
-    
+
     private fun resetToDefaults() {
         // Reset to default values
         enabledCheckBox?.isSelected = true
-        
+
         roundBracketsCheckBox?.isSelected = true
         curlyBracketsCheckBox?.isSelected = true
         angleBracketsCheckBox?.isSelected = true
         squareBracketsCheckBox?.isSelected = true
-        
+
         bracketColorsLightFields.forEachIndexed { index, field ->
             field.text = when (index) {
                 0 -> "#FF69B4" // Hot Pink
@@ -998,7 +993,7 @@ class NeonBracketsSettingsComponent : Configurable {
                 else -> "#FFFFFF"
             }
         }
-        
+
         bracketColorsDarkFields.forEachIndexed { index, field ->
             field.text = when (index) {
                 0 -> "#DC5A96" // Dark Hot Pink
@@ -1010,20 +1005,20 @@ class NeonBracketsSettingsComponent : Configurable {
                 else -> "#000000"
             }
         }
-        
+
         excludedFileTypesField?.text = ""
         skipCommentsAndStringsCheckBox?.isSelected = true
-        
+
         // Update button colors
         updateButtonColors()
     }
-    
+
     private fun updateButtonColors() {
         try {
             for ((index, button) in bracketColorsLightButtons) {
                 button.background = Color.decode(bracketColorsLightFields[index].text)
             }
-            
+
             for ((index, button) in bracketColorsDarkButtons) {
                 button.background = Color.decode(bracketColorsDarkFields[index].text)
             }
@@ -1035,7 +1030,7 @@ class NeonBracketsSettingsComponent : Configurable {
     private fun refreshAllEditors() {
         val editorFactory = EditorFactory.getInstance()
         val editors = editorFactory.allEditors
-        
+
         for (editor in editors) {
             // Remove existing highlighters
             val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS)
@@ -1046,7 +1041,7 @@ class NeonBracketsSettingsComponent : Configurable {
                     // Silent exception handling
                 }
             }
-            
+
             // Apply highlighting with current settings
             highlightBracketsInEditor(editor, true)
         }
@@ -1060,18 +1055,18 @@ class ToggleNeonBracketsAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val settings = NeonBracketsFactory.getInstance().state
         settings.enabled = !settings.enabled
-        
+
         // Refresh all open editors
         ApplicationManager.getApplication().invokeLater {
             refreshAllEditors()
         }
     }
-    
+
     override fun update(e: AnActionEvent) {
         val settings = NeonBracketsFactory.getInstance().state
         e.presentation.text = if (settings.enabled) "Disable Neon Brackets" else "Enable Neon Brackets"
     }
-    
+
     override fun getActionUpdateThread(): ActionUpdateThread {
         return ActionUpdateThread.EDT
     }
@@ -1083,7 +1078,7 @@ class ToggleNeonBracketsAction : AnAction() {
 fun refreshAllEditors() {
     val editorFactory = EditorFactory.getInstance()
     val editors = editorFactory.allEditors
-    
+
     for (editor in editors) {
         // Remove existing highlighters
         val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS)
@@ -1094,7 +1089,7 @@ fun refreshAllEditors() {
                 // Silent exception handling
             }
         }
-        
+
         // Apply highlighting with current settings
         highlightBracketsInEditor(editor, true)
     }

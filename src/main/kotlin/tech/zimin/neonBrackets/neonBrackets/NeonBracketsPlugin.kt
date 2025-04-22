@@ -445,12 +445,18 @@ private fun getActiveBracketPairs(): List<Pair<Char, Char>> {
 }
 
 // Check if a file type is excluded
-private fun isFileTypeExcluded(fileType: String): Boolean {
+private fun isFileTypeExcluded(file: com.intellij.openapi.vfs.VirtualFile): Boolean {
     val settings = NeonBracketsFactory.getInstance().state
     if (settings.excludedFileTypes.isBlank()) return false
 
     val excludedTypes = settings.excludedFileTypes.split(",").map { it.trim().lowercase() }
-    return fileType.lowercase() in excludedTypes
+    
+    // Get the actual file extension
+    val extension = file.extension?.lowercase() ?: ""
+    
+    println("[NeonBrackets] Checking if file extension '$extension' is in excluded types: $excludedTypes")
+    
+    return extension.isNotEmpty() && excludedTypes.contains(extension)
 }
 
 /**
@@ -478,8 +484,8 @@ fun highlightBracketsInEditor(editor: Editor, forceRehighlight: Boolean) {
         // Check if file type is excluded
         val file = FileDocumentManager.getInstance().getFile(editor.document)
         if (file != null) {
-            val fileType = file.fileType.name
-            if (isFileTypeExcluded(fileType)) {
+            if (isFileTypeExcluded(file)) {
+                println("[NeonBrackets] File ${file.name} is excluded, skipping highlighting")
                 // Remove any existing highlighters for excluded file types
                 val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
                 existingHighlighters.forEach {
@@ -839,8 +845,11 @@ class NeonBracketsSettingsComponent : Configurable {
         optionsPanel.add(skipCommentsAndStringsCheckBox)
 
         val excludedFileTypesPanel = JPanel(BorderLayout())
-        excludedFileTypesPanel.add(JBLabel("Excluded file types (comma-separated):"), BorderLayout.NORTH)
+        val excludedFileTypesLabel = JBLabel("Excluded file types (comma-separated):")
+        excludedFileTypesLabel.toolTipText = "Enter file types without wildcards, e.g.: 'java, xml, kt, cs'"
+        excludedFileTypesPanel.add(excludedFileTypesLabel, BorderLayout.NORTH)
         excludedFileTypesField = JBTextField()
+        excludedFileTypesField!!.toolTipText = "Enter file extensions without dots or wildcards (e.g., 'java, xml, kt, cs')"
         excludedFileTypesPanel.add(excludedFileTypesField!!, BorderLayout.CENTER)
         optionsPanel.add(excludedFileTypesPanel)
 

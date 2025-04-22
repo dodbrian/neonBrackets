@@ -764,10 +764,10 @@ class NeonBracketsSettingsComponent : Configurable {
             TitledBorder.LEFT, TitledBorder.TOP
         )
 
-        roundBracketsCheckBox = JBCheckBox("Round Brackets ( )")
-        curlyBracketsCheckBox = JBCheckBox("Curly Brackets { }")
-        angleBracketsCheckBox = JBCheckBox("Angle Brackets < >")
-        squareBracketsCheckBox = JBCheckBox("Square Brackets [ ]")
+        roundBracketsCheckBox = JBCheckBox("( ) Round brackets")
+        curlyBracketsCheckBox = JBCheckBox("{ } Curly brackets")
+        angleBracketsCheckBox = JBCheckBox("< > Angle brackets")
+        squareBracketsCheckBox = JBCheckBox("[ ] Square brackets")
 
         bracketTypesPanel.add(roundBracketsCheckBox)
         bracketTypesPanel.add(curlyBracketsCheckBox)
@@ -835,11 +835,11 @@ class NeonBracketsSettingsComponent : Configurable {
             TitledBorder.LEFT, TitledBorder.TOP
         )
 
-        skipCommentsAndStringsCheckBox = JBCheckBox("Skip Comments and Strings")
+        skipCommentsAndStringsCheckBox = JBCheckBox("Skip comments and strings")
         optionsPanel.add(skipCommentsAndStringsCheckBox)
 
         val excludedFileTypesPanel = JPanel(BorderLayout())
-        excludedFileTypesPanel.add(JBLabel("Excluded File Types (comma-separated):"), BorderLayout.NORTH)
+        excludedFileTypesPanel.add(JBLabel("Excluded file types (comma-separated):"), BorderLayout.NORTH)
         excludedFileTypesField = JBTextField()
         excludedFileTypesPanel.add(excludedFileTypesField!!, BorderLayout.CENTER)
         optionsPanel.add(excludedFileTypesPanel)
@@ -849,7 +849,7 @@ class NeonBracketsSettingsComponent : Configurable {
 
         // Reset to defaults button
         val resetPanel = JPanel(BorderLayout())
-        val resetButton = JButton("Reset to Defaults")
+        val resetButton = JButton("Reset to defaults")
         resetButton.addActionListener { resetToDefaults() }
         resetPanel.add(resetButton, BorderLayout.EAST)
         mainPanel.add(resetPanel)

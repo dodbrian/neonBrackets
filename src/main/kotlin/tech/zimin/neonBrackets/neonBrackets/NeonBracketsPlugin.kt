@@ -11,8 +11,10 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.util.elementType
 import com.intellij.ui.JBColor
 import java.awt.Color
 import java.awt.Font
@@ -143,7 +145,7 @@ fun highlightBracketsInEditor(editor: Editor) {
                 // Check for opening brackets
                 for ((openChar, closeChar) in activeBracketPairs) {
                     // For angle brackets, only process them if they're used for generics
-                    if ((openChar == '<' || closeChar == '>') && !isGenericAngleBracket(text, i)) {
+                    if ((char == '<' || char == '>') && !isGenericAngleBracket(psiFile, i)) {
                         continue
                     }
                     
@@ -207,66 +209,134 @@ private fun isInCommentOrString(psiFile: PsiFile, offset: Int): Boolean {
 }
 
 /**
- * Determines if an angle bracket at the given position is likely used for generics rather than as an operator.
- * This function checks surrounding characters to make the determination.
+ * Determines if an angle bracket at the given position is used for generics rather than as an operator.
+ * Uses a combination of PSI-based detection and character context analysis.
  */
-private fun isGenericAngleBracket(text: String, position: Int): Boolean {
-    if (position < 0 || position >= text.length || (text[position] != '<' && text[position] != '>')) {
-        return false
-    }
+private fun isGenericAngleBracket(psiFile: PsiFile?, offset: Int): Boolean {
+    if (psiFile == null) return true // If we can't determine, default to highlighting
     
-    val char = text[position]
+    val document = PsiDocumentManager.getInstance(psiFile.project).getDocument(psiFile) ?: return true
+    if (offset < 0 || offset >= document.textLength) return false
     
-    // For opening angle bracket '<'
-    if (char == '<') {
-        // Check if it's preceded by an identifier (letter, digit, underscore, or dot)
-        // and followed by a letter, which would indicate a generic type
-        val hasIdentifierBefore = position > 0 && (text[position - 1].isLetterOrDigit() || 
-                                                  text[position - 1] == '_' || 
-                                                  text[position - 1] == '.')
-        val hasIdentifierAfter = position < text.length - 1 && 
-                               (text[position + 1].isLetter() || 
-                                text[position + 1] == '?' ||  // For nullable types
-                                text[position + 1] == '_' ||  // For type parameters
-                                text[position + 1] == ' ' ||  // Space after opening bracket
-                                text[position + 1] == '\t')   // Tab after opening bracket
-        
-        // Check for space in generic declarations like "List< T>"
-        if (hasIdentifierBefore && position < text.length - 2 && 
-            text[position + 1].isWhitespace() && text[position + 2].isLetter()) {
-            return true
+    val text = document.text
+    val char = text[offset]
+    
+    // Only process angle brackets
+    if (char != '<' && char != '>') return false
+    
+    try {
+        // First try PSI-based detection
+        val element = psiFile.findElementAt(offset)
+        if (element != null) {
+            val elementType = element.elementType.toString()
+            
+            // Check if we're in a comment or string
+            if (elementType.contains("COMMENT") || elementType.contains("STRING")) {
+                return false
+            }
+            
+            // Check parent context for type-related elements
+            var current = element.parent
+            var depth = 0
+            val maxDepth = 3 // Limit search depth
+            
+            while (current != null && depth < maxDepth) {
+                val parentType = current.node?.elementType?.toString() ?: ""
+                
+                if (parentType.contains("TYPE") || 
+                    parentType.contains("GENERIC") || 
+                    parentType.contains("CLASS") || 
+                    parentType.contains("FUNCTION_TYPE")) {
+                    return true
+                }
+                
+                current = current.parent
+                depth++
+            }
         }
         
-        return hasIdentifierBefore && hasIdentifierAfter
-    } 
-    // For closing angle bracket '>'
-    else {
-        // Check if it's preceded by an identifier or another closing bracket
-        // and followed by appropriate characters for end of a generic declaration
-        val hasValidBefore = position > 0 && (text[position - 1].isLetterOrDigit() || 
-                                            text[position - 1] == '_' || 
-                                            text[position - 1] == '>' ||  // Nested generics
-                                            text[position - 1] == ' ' ||  // Space before closing bracket
-                                            text[position - 1] == '\t' || // Tab before closing bracket
-                                            text[position - 1] == '?')    // For nullable types
+        // Fallback to character context analysis
+        return isGenericByCharacterContext(text, offset)
         
-        // Valid characters after a closing generic bracket
-        val hasValidAfter = position == text.length - 1 || // End of text
-                          (position < text.length - 1 && (
-                           text[position + 1] == '(' ||    // Method call after generic
-                           text[position + 1] == ')' ||    // End of parameter
-                           text[position + 1] == ',' ||    // Parameter separator
-                           text[position + 1] == '.' ||    // Method call on generic
-                           text[position + 1] == ' ' ||    // Space after generic
-                           text[position + 1] == '\t' ||   // Tab after generic
-                           text[position + 1] == ';' ||    // End of statement
-                           text[position + 1] == '{' ||    // Start of block
-                           text[position + 1] == '>' ||    // Nested generics
-                           text[position + 1] == '[' ||    // Array access
-                           text[position + 1].isWhitespace()))
-        
-        return hasValidBefore && hasValidAfter
+    } catch (e: Exception) {
+        // If anything goes wrong, fall back to character context analysis
+        return isGenericByCharacterContext(text, offset)
     }
+}
+
+/**
+ * Fallback method that determines if an angle bracket is likely a generic based on surrounding characters.
+ */
+private fun isGenericByCharacterContext(text: String, position: Int): Boolean {
+    val char = text[position]
+    
+    // Check for comparison operators
+    if (char == '<') {
+        // Check if it's a comparison operator (typically has spaces around it or is part of <=)
+        if (position > 0 && position < text.length - 1) {
+            // Check for <= operator
+            if (position < text.length - 1 && text[position + 1] == '=') {
+                return false
+            }
+            
+            // Check for space before and after, which typically indicates a comparison operator
+            val spaceBefore = position > 0 && text[position - 1].isWhitespace()
+            val spaceAfter = position < text.length - 1 && text[position + 1].isWhitespace()
+            
+            if (spaceBefore && spaceAfter) {
+                return false
+            }
+            
+            // Check for number or boolean literal before, which typically indicates a comparison
+            if (position > 0) {
+                val prevChar = text[position - 1]
+                if (prevChar.isDigit() || 
+                    (position > 5 && text.substring(position - 5, position).contains("true")) ||
+                    (position > 6 && text.substring(position - 6, position).contains("false"))) {
+                    return false
+                }
+            }
+            
+            // Check for identifier before and letter after, which typically indicates a generic
+            val hasIdentifierBefore = position > 0 && (text[position - 1].isLetterOrDigit() || 
+                                                     text[position - 1] == '_' || 
+                                                     text[position - 1] == '.')
+            
+            // If it has an identifier before, it's likely a generic
+            if (hasIdentifierBefore) {
+                return true
+            }
+        }
+    } else if (char == '>') {
+        // Check if it's a comparison operator (typically has spaces around it or is part of >=)
+        if (position > 0 && position < text.length - 1) {
+            // Check for >= operator
+            if (position > 0 && text[position - 1] == '=') {
+                return false
+            }
+            
+            // Check for space before and after, which typically indicates a comparison operator
+            val spaceBefore = position > 0 && text[position - 1].isWhitespace()
+            val spaceAfter = position < text.length - 1 && text[position + 1].isWhitespace()
+            
+            if (spaceBefore && spaceAfter) {
+                return false
+            }
+            
+            // Check for number or boolean literal after, which typically indicates a comparison
+            if (position < text.length - 1) {
+                val nextChar = text[position + 1]
+                if (nextChar.isDigit() || 
+                    (position < text.length - 5 && text.substring(position + 1, position + 6).contains("true")) ||
+                    (position < text.length - 6 && text.substring(position + 1, position + 7).contains("false"))) {
+                    return false
+                }
+            }
+        }
+    }
+    
+    // Default to treating it as a generic if we can't determine it's an operator
+    return true
 }
 
 /**

@@ -3,6 +3,7 @@ package tech.zimin.neonBrackets.neonBrackets
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.options.Configurable
+import com.intellij.ui.ColorPanel
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
@@ -10,15 +11,8 @@ import com.intellij.ui.components.JBTextField
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.GridLayout
-import javax.swing.BorderFactory
-import javax.swing.Box
-import javax.swing.BoxLayout
-import javax.swing.JButton
-import javax.swing.JColorChooser
-import javax.swing.JComponent
-import javax.swing.JPanel
+import javax.swing.*
 import javax.swing.border.TitledBorder
-import kotlin.collections.iterator
 
 /**
  * Settings component for the plugin.
@@ -32,12 +26,10 @@ class NeonBracketsSettingsComponent : Configurable {
     private var squareBracketsCheckBox: JBCheckBox? = null
 
     // Light theme colors
-    private var bracketColorsLightFields = mutableListOf<JBTextField>()
-    private var bracketColorsLightButtons = mutableMapOf<Int, JButton>()
+    private var bracketColorsLightPanels = mutableListOf<ColorPanel>()
 
     // Dark theme colors
-    private var bracketColorsDarkFields = mutableListOf<JBTextField>()
-    private var bracketColorsDarkButtons = mutableMapOf<Int, JButton>()
+    private var bracketColorsDarkPanels = mutableListOf<ColorPanel>()
 
     private var excludedFileTypesField: JBTextField? = null
     private var skipCommentsAndStringsCheckBox: JBCheckBox? = null
@@ -77,50 +69,40 @@ class NeonBracketsSettingsComponent : Configurable {
         mainPanel.add(Box.createVerticalStrut(10))
 
         // Light theme colors panel
-        val lightColorsPanel = JPanel(GridLayout(7, 3))
+        val lightColorsPanel = JPanel(GridLayout(7, 2))
         lightColorsPanel.border = BorderFactory.createTitledBorder(
             BorderFactory.createEtchedBorder(), "Light Theme Colors",
             TitledBorder.LEFT, TitledBorder.TOP
         )
 
         lightColorsPanel.add(JBLabel("Nesting Level"))
-        lightColorsPanel.add(JBLabel("Hex Color"))
-        lightColorsPanel.add(JBLabel("Pick"))
+        lightColorsPanel.add(JBLabel("Color"))
 
         for (i in 0 until 6) {
             lightColorsPanel.add(JBLabel("Level $i"))
-            val field = JBTextField()
-            bracketColorsLightFields.add(field)
-            lightColorsPanel.add(field)
-            val button = JButton("...")
-            bracketColorsLightButtons[i] = button
-            button.addActionListener { pickColor(field, button) }
-            lightColorsPanel.add(button)
+            val colorPanel = ColorPanel()
+            bracketColorsLightPanels.add(colorPanel)
+            lightColorsPanel.add(colorPanel)
         }
 
         mainPanel.add(lightColorsPanel)
         mainPanel.add(Box.createVerticalStrut(10))
 
         // Dark theme colors panel
-        val darkColorsPanel = JPanel(GridLayout(7, 3))
+        val darkColorsPanel = JPanel(GridLayout(7, 2))
         darkColorsPanel.border = BorderFactory.createTitledBorder(
             BorderFactory.createEtchedBorder(), "Dark Theme Colors",
             TitledBorder.LEFT, TitledBorder.TOP
         )
 
         darkColorsPanel.add(JBLabel("Nesting Level"))
-        darkColorsPanel.add(JBLabel("Hex Color"))
-        darkColorsPanel.add(JBLabel("Pick"))
+        darkColorsPanel.add(JBLabel("Color"))
 
         for (i in 0 until 6) {
             darkColorsPanel.add(JBLabel("Level $i"))
-            val field = JBTextField()
-            bracketColorsDarkFields.add(field)
-            darkColorsPanel.add(field)
-            val button = JButton("...")
-            bracketColorsDarkButtons[i] = button
-            button.addActionListener { pickColor(field, button) }
-            darkColorsPanel.add(button)
+            val colorPanel = ColorPanel()
+            bracketColorsDarkPanels.add(colorPanel)
+            darkColorsPanel.add(colorPanel)
         }
 
         mainPanel.add(darkColorsPanel)
@@ -165,21 +147,6 @@ class NeonBracketsSettingsComponent : Configurable {
         return myPanel!!
     }
 
-    private fun pickColor(textField: JBTextField, button: JButton) {
-        val initialColor = try {
-            Color.decode(textField.text)
-        } catch (_: Exception) {
-            JBColor.WHITE
-        }
-
-        val color = JColorChooser.showDialog(myPanel, "Choose Color", initialColor)
-        if (color != null) {
-            val hexColor = String.format("#%02X%02X%02X", color.red, color.green, color.blue)
-            textField.text = hexColor
-            button.background = color
-        }
-    }
-
     override fun isModified(): Boolean {
         val settings = NeonBracketsFactory.getInstance().state
 
@@ -190,19 +157,31 @@ class NeonBracketsSettingsComponent : Configurable {
         if (squareBracketsCheckBox?.isSelected != settings.enableSquareBrackets) return true
 
         // Check if any color has been modified
-        for (i in bracketColorsLightFields.indices) {
-            if (i < settings.bracketColorsLight.size &&
-                bracketColorsLightFields[i].text != settings.bracketColorsLight[i]
-            ) {
-                return true
+        for (i in bracketColorsLightPanels.indices) {
+            if (i < settings.bracketColorsLight.size) {
+                val settingsColor = try {
+                    Color.decode(settings.bracketColorsLight[i])
+                } catch (_: Exception) {
+                    null
+                }
+                
+                if (settingsColor != bracketColorsLightPanels[i].selectedColor) {
+                    return true
+                }
             }
         }
 
-        for (i in bracketColorsDarkFields.indices) {
-            if (i < settings.bracketColorsDark.size &&
-                bracketColorsDarkFields[i].text != settings.bracketColorsDark[i]
-            ) {
-                return true
+        for (i in bracketColorsDarkPanels.indices) {
+            if (i < settings.bracketColorsDark.size) {
+                val settingsColor = try {
+                    Color.decode(settings.bracketColorsDark[i])
+                } catch (_: Exception) {
+                    null
+                }
+                
+                if (settingsColor != bracketColorsDarkPanels[i].selectedColor) {
+                    return true
+                }
             }
         }
 
@@ -223,14 +202,24 @@ class NeonBracketsSettingsComponent : Configurable {
 
         // Update color lists
         val lightColors = mutableListOf<String>()
-        for (field in bracketColorsLightFields) {
-            lightColors.add(field.text)
+        for (panel in bracketColorsLightPanels) {
+            val color = panel.selectedColor
+            if (color != null) {
+                lightColors.add(String.format("#%02X%02X%02X", color.red, color.green, color.blue))
+            } else {
+                lightColors.add("#FF69B4") // Default to Hot Pink if no color selected
+            }
         }
         settings.bracketColorsLight = lightColors
 
         val darkColors = mutableListOf<String>()
-        for (field in bracketColorsDarkFields) {
-            darkColors.add(field.text)
+        for (panel in bracketColorsDarkPanels) {
+            val color = panel.selectedColor
+            if (color != null) {
+                darkColors.add(String.format("#%02X%02X%02X", color.red, color.green, color.blue))
+            } else {
+                darkColors.add("#DC5A96") // Default to Dark Hot Pink if no color selected
+            }
         }
         settings.bracketColorsDark = darkColors
 
@@ -252,24 +241,31 @@ class NeonBracketsSettingsComponent : Configurable {
         angleBracketsCheckBox?.isSelected = settings.enableAngleBrackets
         squareBracketsCheckBox?.isSelected = settings.enableSquareBrackets
 
-        // Reset color fields
-        for (i in bracketColorsLightFields.indices) {
+        // Reset color panels
+        for (i in bracketColorsLightPanels.indices) {
             if (i < settings.bracketColorsLight.size) {
-                bracketColorsLightFields[i].text = settings.bracketColorsLight[i]
+                try {
+                    bracketColorsLightPanels[i].selectedColor = Color.decode(settings.bracketColorsLight[i])
+                } catch (_: Exception) {
+                    // Use default color if parsing fails
+                    bracketColorsLightPanels[i].selectedColor = JBColor(0xFF69B4, 0xFF69B4) // Hot Pink
+                }
             }
         }
 
-        for (i in bracketColorsDarkFields.indices) {
+        for (i in bracketColorsDarkPanels.indices) {
             if (i < settings.bracketColorsDark.size) {
-                bracketColorsDarkFields[i].text = settings.bracketColorsDark[i]
+                try {
+                    bracketColorsDarkPanels[i].selectedColor = Color.decode(settings.bracketColorsDark[i])
+                } catch (_: Exception) {
+                    // Use default color if parsing fails
+                    bracketColorsDarkPanels[i].selectedColor = JBColor(0xDC5A96, 0xDC5A96) // Dark Hot Pink
+                }
             }
         }
 
         excludedFileTypesField?.text = settings.excludedFileTypes
         skipCommentsAndStringsCheckBox?.isSelected = settings.skipCommentsAndStrings
-
-        // Update button colors
-        updateButtonColors()
     }
 
     override fun disposeUIResources() {
@@ -285,51 +281,34 @@ class NeonBracketsSettingsComponent : Configurable {
         angleBracketsCheckBox?.isSelected = true
         squareBracketsCheckBox?.isSelected = true
 
-        bracketColorsLightFields.forEachIndexed { index, field ->
-            field.text = when (index) {
-                0 -> "#FF69B4" // Hot Pink
-                1 -> "#4169E1" // Royal Blue
-                2 -> "#32CD32" // Lime Green
-                3 -> "#FFA500" // Orange
-                4 -> "#8A2BE2" // Blue Violet
-                5 -> "#1E90FF" // Dodger Blue
-                else -> "#FFFFFF"
+        bracketColorsLightPanels.forEachIndexed { index, panel ->
+            panel.selectedColor = when (index) {
+                0 -> Color.decode("#FF69B4") // Hot Pink
+                1 -> Color.decode("#4169E1") // Royal Blue
+                2 -> Color.decode("#32CD32") // Lime Green
+                3 -> Color.decode("#FFA500") // Orange
+                4 -> Color.decode("#8A2BE2") // Blue Violet
+                5 -> Color.decode("#1E90FF") // Dodger Blue
+                else -> JBColor.WHITE
             }
         }
 
-        bracketColorsDarkFields.forEachIndexed { index, field ->
-            field.text = when (index) {
-                0 -> "#DC5A96" // Dark Hot Pink
-                1 -> "#375ABE" // Dark Royal Blue
-                2 -> "#28AF28" // Dark Lime Green
-                3 -> "#DC8C00" // Dark Orange
-                4 -> "#7828BE" // Dark Blue Violet
-                5 -> "#1978D2" // Dark Dodger Blue
-                else -> "#000000"
+        bracketColorsDarkPanels.forEachIndexed { index, panel ->
+            panel.selectedColor = when (index) {
+                0 -> Color.decode("#DC5A96") // Dark Hot Pink
+                1 -> Color.decode("#375ABE") // Dark Royal Blue
+                2 -> Color.decode("#28AF28") // Dark Lime Green
+                3 -> Color.decode("#DC8C00") // Dark Orange
+                4 -> Color.decode("#7828BE") // Dark Blue Violet
+                5 -> Color.decode("#1978D2") // Dark Dodger Blue
+                else -> JBColor.BLACK
             }
         }
 
         excludedFileTypesField?.text = ""
         skipCommentsAndStringsCheckBox?.isSelected = true
-
-        // Update button colors
-        updateButtonColors()
     }
-
-    private fun updateButtonColors() {
-        try {
-            for ((index, button) in bracketColorsLightButtons) {
-                button.background = Color.decode(bracketColorsLightFields[index].text)
-            }
-
-            for ((index, button) in bracketColorsDarkButtons) {
-                button.background = Color.decode(bracketColorsDarkFields[index].text)
-            }
-        } catch (_: Exception) {
-            // Ignore color parsing errors
-        }
-    }
-
+    
     private fun refreshAllEditors() {
         val editorFactory = EditorFactory.getInstance()
         val editors = editorFactory.allEditors

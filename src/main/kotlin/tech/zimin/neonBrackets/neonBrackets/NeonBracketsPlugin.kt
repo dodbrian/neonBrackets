@@ -142,6 +142,11 @@ fun highlightBracketsInEditor(editor: Editor) {
 
                 // Check for opening brackets
                 for ((openChar, closeChar) in activeBracketPairs) {
+                    // For angle brackets, only process them if they're used for generics
+                    if ((openChar == '<' || closeChar == '>') && !isGenericAngleBracket(text, i)) {
+                        continue
+                    }
+                    
                     if (char == openChar) {
                         bracketStacks[openChar]?.add(i)
                         break
@@ -199,6 +204,69 @@ private fun isInCommentOrString(psiFile: PsiFile, offset: Int): Boolean {
         element, PsiComment::class.java
     ) != null || element.node?.elementType.toString().contains("STRING") || element.node?.elementType.toString()
         .contains("COMMENT"))
+}
+
+/**
+ * Determines if an angle bracket at the given position is likely used for generics rather than as an operator.
+ * This function checks surrounding characters to make the determination.
+ */
+private fun isGenericAngleBracket(text: String, position: Int): Boolean {
+    if (position < 0 || position >= text.length || (text[position] != '<' && text[position] != '>')) {
+        return false
+    }
+    
+    val char = text[position]
+    
+    // For opening angle bracket '<'
+    if (char == '<') {
+        // Check if it's preceded by an identifier (letter, digit, underscore, or dot)
+        // and followed by a letter, which would indicate a generic type
+        val hasIdentifierBefore = position > 0 && (text[position - 1].isLetterOrDigit() || 
+                                                  text[position - 1] == '_' || 
+                                                  text[position - 1] == '.')
+        val hasIdentifierAfter = position < text.length - 1 && 
+                               (text[position + 1].isLetter() || 
+                                text[position + 1] == '?' ||  // For nullable types
+                                text[position + 1] == '_' ||  // For type parameters
+                                text[position + 1] == ' ' ||  // Space after opening bracket
+                                text[position + 1] == '\t')   // Tab after opening bracket
+        
+        // Check for space in generic declarations like "List< T>"
+        if (hasIdentifierBefore && position < text.length - 2 && 
+            text[position + 1].isWhitespace() && text[position + 2].isLetter()) {
+            return true
+        }
+        
+        return hasIdentifierBefore && hasIdentifierAfter
+    } 
+    // For closing angle bracket '>'
+    else {
+        // Check if it's preceded by an identifier or another closing bracket
+        // and followed by appropriate characters for end of a generic declaration
+        val hasValidBefore = position > 0 && (text[position - 1].isLetterOrDigit() || 
+                                            text[position - 1] == '_' || 
+                                            text[position - 1] == '>' ||  // Nested generics
+                                            text[position - 1] == ' ' ||  // Space before closing bracket
+                                            text[position - 1] == '\t' || // Tab before closing bracket
+                                            text[position - 1] == '?')    // For nullable types
+        
+        // Valid characters after a closing generic bracket
+        val hasValidAfter = position == text.length - 1 || // End of text
+                          (position < text.length - 1 && (
+                           text[position + 1] == '(' ||    // Method call after generic
+                           text[position + 1] == ')' ||    // End of parameter
+                           text[position + 1] == ',' ||    // Parameter separator
+                           text[position + 1] == '.' ||    // Method call on generic
+                           text[position + 1] == ' ' ||    // Space after generic
+                           text[position + 1] == '\t' ||   // Tab after generic
+                           text[position + 1] == ';' ||    // End of statement
+                           text[position + 1] == '{' ||    // Start of block
+                           text[position + 1] == '>' ||    // Nested generics
+                           text[position + 1] == '[' ||    // Array access
+                           text[position + 1].isWhitespace()))
+        
+        return hasValidBefore && hasValidAfter
+    }
 }
 
 /**

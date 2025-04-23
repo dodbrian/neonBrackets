@@ -34,7 +34,7 @@
         <!-- Register startup activity -->
         <postStartupActivity implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"/>
         <!-- Register settings page -->
-        <applicationConfigurable parentId="tools" 
+        <applicationConfigurable parentId="tools"
                                 instance="tech.zimin.neonBrackets.neonBrackets.NeonBracketsSettingsComponent"/>
     </extensions>
     
@@ -48,10 +48,4 @@
             <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl alt B"/>
         </action>
     </actions>
-    
-    <!-- No longer needed as we're using StartupActivity -->
-    <!-- <projectListeners>
-        <listener class="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"
-                  topic="com.intellij.openapi.project.ProjectManagerListener"/>
-    </projectListeners> -->
 </idea-plugin>

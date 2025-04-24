@@ -3,16 +3,127 @@ package tech.zimin.neonBrackets.neonBrackets
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.options.Configurable
-import com.intellij.ui.ColorPanel
+import com.intellij.ui.ColorUtil
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
-import java.awt.BorderLayout
-import java.awt.Color
-import java.awt.GridLayout
+import java.awt.*
+import java.awt.geom.RoundRectangle2D
 import javax.swing.*
 import javax.swing.border.TitledBorder
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import java.awt.event.ActionListener
+import java.awt.event.ActionEvent
+import com.intellij.ui.ColorPicker
+
+private const val hexColorTemplate = "#%02X%02X%02X"
+
+/**
+ * A custom color panel with rounded corners and centered hex value
+ */
+class RoundedColorPanel : JPanel() {
+    private var selectedColor: Color = JBColor.WHITE
+    private val listeners = mutableListOf<ActionListener>()
+
+    init {
+        // Set preferred size
+        preferredSize = Dimension(120, 28)
+        minimumSize = Dimension(100, 28)
+
+        // Make the panel non-opaque for better rendering
+        isOpaque = false
+
+        // Add mouse listener to handle clicks
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) {
+                if (isEnabled) {
+                    showColorPicker()
+                }
+            }
+        })
+    }
+
+    private fun showColorPicker() {
+        val color = ColorPicker.showDialog(
+            this,
+            "Choose Color",
+            selectedColor,
+            true,
+            null,
+            false
+        )
+
+        if (color != null) {
+            setSelectedColor(color)
+            // Notify listeners
+            val event = ActionEvent(this, ActionEvent.ACTION_PERFORMED, "colorChanged")
+            for (listener in listeners) {
+                listener.actionPerformed(event)
+            }
+        }
+    }
+
+    fun getSelectedColor(): Color? = selectedColor
+
+    fun setSelectedColor(color: Color?) {
+        if (color != null) {
+            selectedColor = color
+            repaint()
+        }
+    }
+
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+
+        val g2d = g as Graphics2D
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+
+        // Create rounded rectangle with 8px corner radius
+        val roundRect = RoundRectangle2D.Float(
+            0f,
+            0f,
+            width.toFloat(),
+            height.toFloat(),
+            8f, 8f
+        )
+
+        // Fill with selected color
+        g2d.color = selectedColor
+        g2d.fill(roundRect)
+
+        // Draw border
+        g2d.color = JBColor.border()
+        g2d.draw(roundRect)
+
+        // Draw hex value in the center
+        val hexColor = String.format(hexColorTemplate, selectedColor.red, selectedColor.green, selectedColor.blue)
+
+        // Use a slightly larger font to make the text more visible
+        val originalFont = g2d.font
+        g2d.font = originalFont.deriveFont(originalFont.size2D * 1.1f)
+
+        val fontMetrics = g2d.fontMetrics
+
+        // Determine text color (white for dark backgrounds, black for light backgrounds)
+        val textColor = if (ColorUtil.isDark(selectedColor)) JBColor.WHITE else JBColor.BLACK
+        g2d.color = textColor
+
+        // Center the text precisely
+        val textWidth = fontMetrics.stringWidth(hexColor)
+
+        // Calculate exact center position
+        val x = (width - textWidth) / 2
+        val y = height / 2 + (fontMetrics.ascent - fontMetrics.descent) / 2
+
+        g2d.drawString(hexColor, x, y)
+
+        // Restore original font
+        g2d.font = originalFont
+    }
+}
 
 /**
  * Settings component for the plugin.
@@ -26,10 +137,10 @@ class NeonBracketsSettingsComponent : Configurable {
     private var squareBracketsCheckBox: JBCheckBox? = null
 
     // Light theme colors
-    private var bracketColorsLightPanels = mutableListOf<ColorPanel>()
+    private var bracketColorsLightPanels = mutableListOf<RoundedColorPanel>()
 
     // Dark theme colors
-    private var bracketColorsDarkPanels = mutableListOf<ColorPanel>()
+    private var bracketColorsDarkPanels = mutableListOf<RoundedColorPanel>()
 
     private var excludedFileTypesField: JBTextField? = null
     private var skipCommentsAndStringsCheckBox: JBCheckBox? = null
@@ -80,7 +191,7 @@ class NeonBracketsSettingsComponent : Configurable {
 
         for (i in 0 until 6) {
             lightColorsPanel.add(JBLabel("Level $i"))
-            val colorPanel = ColorPanel()
+            val colorPanel = RoundedColorPanel()
             bracketColorsLightPanels.add(colorPanel)
             lightColorsPanel.add(colorPanel)
         }
@@ -100,7 +211,7 @@ class NeonBracketsSettingsComponent : Configurable {
 
         for (i in 0 until 6) {
             darkColorsPanel.add(JBLabel("Level $i"))
-            val colorPanel = ColorPanel()
+            val colorPanel = RoundedColorPanel()
             bracketColorsDarkPanels.add(colorPanel)
             darkColorsPanel.add(colorPanel)
         }
@@ -164,8 +275,8 @@ class NeonBracketsSettingsComponent : Configurable {
                 } catch (_: Exception) {
                     null
                 }
-                
-                if (settingsColor != bracketColorsLightPanels[i].selectedColor) {
+
+                if (settingsColor != bracketColorsLightPanels[i].getSelectedColor()) {
                     return true
                 }
             }
@@ -178,8 +289,8 @@ class NeonBracketsSettingsComponent : Configurable {
                 } catch (_: Exception) {
                     null
                 }
-                
-                if (settingsColor != bracketColorsDarkPanels[i].selectedColor) {
+
+                if (settingsColor != bracketColorsDarkPanels[i].getSelectedColor()) {
                     return true
                 }
             }
@@ -203,9 +314,9 @@ class NeonBracketsSettingsComponent : Configurable {
         // Update color lists
         val lightColors = mutableListOf<String>()
         for (panel in bracketColorsLightPanels) {
-            val color = panel.selectedColor
+            val color = panel.getSelectedColor()
             if (color != null) {
-                lightColors.add(String.format("#%02X%02X%02X", color.red, color.green, color.blue))
+                lightColors.add(String.format(hexColorTemplate, color.red, color.green, color.blue))
             } else {
                 lightColors.add("#FF69B4") // Default to Hot Pink if no color selected
             }
@@ -214,9 +325,9 @@ class NeonBracketsSettingsComponent : Configurable {
 
         val darkColors = mutableListOf<String>()
         for (panel in bracketColorsDarkPanels) {
-            val color = panel.selectedColor
+            val color = panel.getSelectedColor()
             if (color != null) {
-                darkColors.add(String.format("#%02X%02X%02X", color.red, color.green, color.blue))
+                darkColors.add(String.format(hexColorTemplate, color.red, color.green, color.blue))
             } else {
                 darkColors.add("#DC5A96") // Default to Dark Hot Pink if no color selected
             }
@@ -245,10 +356,10 @@ class NeonBracketsSettingsComponent : Configurable {
         for (i in bracketColorsLightPanels.indices) {
             if (i < settings.bracketColorsLight.size) {
                 try {
-                    bracketColorsLightPanels[i].selectedColor = Color.decode(settings.bracketColorsLight[i])
+                    bracketColorsLightPanels[i].setSelectedColor(Color.decode(settings.bracketColorsLight[i]))
                 } catch (_: Exception) {
                     // Use default color if parsing fails
-                    bracketColorsLightPanels[i].selectedColor = JBColor(0xFF69B4, 0xFF69B4) // Hot Pink
+                    bracketColorsLightPanels[i].setSelectedColor(JBColor(0xFF69B4, 0xFF69B4)) // Hot Pink
                 }
             }
         }
@@ -256,10 +367,10 @@ class NeonBracketsSettingsComponent : Configurable {
         for (i in bracketColorsDarkPanels.indices) {
             if (i < settings.bracketColorsDark.size) {
                 try {
-                    bracketColorsDarkPanels[i].selectedColor = Color.decode(settings.bracketColorsDark[i])
+                    bracketColorsDarkPanels[i].setSelectedColor(Color.decode(settings.bracketColorsDark[i]))
                 } catch (_: Exception) {
                     // Use default color if parsing fails
-                    bracketColorsDarkPanels[i].selectedColor = JBColor(0xDC5A96, 0xDC5A96) // Dark Hot Pink
+                    bracketColorsDarkPanels[i].setSelectedColor(JBColor(0xDC5A96, 0xDC5A96)) // Dark Hot Pink
                 }
             }
         }
@@ -282,33 +393,37 @@ class NeonBracketsSettingsComponent : Configurable {
         squareBracketsCheckBox?.isSelected = true
 
         bracketColorsLightPanels.forEachIndexed { index, panel ->
-            panel.selectedColor = when (index) {
-                0 -> Color.decode("#FF69B4") // Hot Pink
-                1 -> Color.decode("#4169E1") // Royal Blue
-                2 -> Color.decode("#32CD32") // Lime Green
-                3 -> Color.decode("#FFA500") // Orange
-                4 -> Color.decode("#8A2BE2") // Blue Violet
-                5 -> Color.decode("#1E90FF") // Dodger Blue
-                else -> JBColor.WHITE
-            }
+            panel.setSelectedColor(
+                when (index) {
+                    0 -> Color.decode("#FF69B4") // Hot Pink
+                    1 -> Color.decode("#4169E1") // Royal Blue
+                    2 -> Color.decode("#32CD32") // Lime Green
+                    3 -> Color.decode("#FFA500") // Orange
+                    4 -> Color.decode("#8A2BE2") // Blue Violet
+                    5 -> Color.decode("#1E90FF") // Dodger Blue
+                    else -> JBColor.WHITE
+                }
+            )
         }
 
         bracketColorsDarkPanels.forEachIndexed { index, panel ->
-            panel.selectedColor = when (index) {
-                0 -> Color.decode("#DC5A96") // Dark Hot Pink
-                1 -> Color.decode("#375ABE") // Dark Royal Blue
-                2 -> Color.decode("#28AF28") // Dark Lime Green
-                3 -> Color.decode("#DC8C00") // Dark Orange
-                4 -> Color.decode("#7828BE") // Dark Blue Violet
-                5 -> Color.decode("#1978D2") // Dark Dodger Blue
-                else -> JBColor.BLACK
-            }
+            panel.setSelectedColor(
+                when (index) {
+                    0 -> Color.decode("#DC5A96") // Dark Hot Pink
+                    1 -> Color.decode("#375ABE") // Dark Royal Blue
+                    2 -> Color.decode("#28AF28") // Dark Lime Green
+                    3 -> Color.decode("#DC8C00") // Dark Orange
+                    4 -> Color.decode("#7828BE") // Dark Blue Violet
+                    5 -> Color.decode("#1978D2") // Dark Dodger Blue
+                    else -> JBColor.BLACK
+                }
+            )
         }
 
         excludedFileTypesField?.text = ""
         skipCommentsAndStringsCheckBox?.isSelected = true
     }
-    
+
     private fun refreshAllEditors() {
         val editorFactory = EditorFactory.getInstance()
         val editors = editorFactory.allEditors

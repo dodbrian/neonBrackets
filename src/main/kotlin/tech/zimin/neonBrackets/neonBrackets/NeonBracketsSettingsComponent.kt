@@ -4,12 +4,13 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.ui.JBColor
+import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.JBUI
 import java.awt.*
 import javax.swing.*
-import javax.swing.border.TitledBorder
 
 /**
  * Settings component for the plugin.
@@ -34,114 +35,110 @@ class NeonBracketsSettingsComponent : Configurable {
     override fun getDisplayName(): String = "Neon Brackets"
 
     override fun createComponent(): JComponent {
-        myPanel = JPanel(BorderLayout())
-
-        // Main panel with all settings
-        val mainPanel = JPanel()
-        mainPanel.layout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
-
+        // Create main panel with vertical box layout
+        myPanel = JPanel()
+        myPanel!!.layout = BoxLayout(myPanel, BoxLayout.Y_AXIS)
+        myPanel!!.border = JBUI.Borders.empty(10)
+        
         // Global enable/disable
         enabledCheckBox = JBCheckBox("Enable Neon Brackets")
-        mainPanel.add(enabledCheckBox)
-        mainPanel.add(Box.createVerticalStrut(10))
-
-        // Bracket types panel
-        val bracketTypesPanel = JPanel(GridLayout(4, 1))
-        bracketTypesPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Bracket Types",
-            TitledBorder.LEFT, TitledBorder.TOP
-        )
-
+        myPanel!!.add(enabledCheckBox)
+        myPanel!!.add(Box.createVerticalStrut(10))
+        
+        // Bracket types section
+        myPanel!!.add(TitledSeparator("Bracket Types"))
+        myPanel!!.add(Box.createVerticalStrut(5))
+        
+        // Bracket types checkboxes
         roundBracketsCheckBox = JBCheckBox("( ) Round brackets")
         curlyBracketsCheckBox = JBCheckBox("{ } Curly brackets")
         angleBracketsCheckBox = JBCheckBox("< > Angle brackets")
         squareBracketsCheckBox = JBCheckBox("[ ] Square brackets")
-
+        
+        // Create bracket types panel
+        val bracketTypesPanel = JPanel(GridLayout(4, 1))
         bracketTypesPanel.add(roundBracketsCheckBox)
         bracketTypesPanel.add(curlyBracketsCheckBox)
         bracketTypesPanel.add(angleBracketsCheckBox)
         bracketTypesPanel.add(squareBracketsCheckBox)
-
-        mainPanel.add(bracketTypesPanel)
-        mainPanel.add(Box.createVerticalStrut(10))
-
+        bracketTypesPanel.alignmentX = Component.LEFT_ALIGNMENT
+        
+        myPanel!!.add(bracketTypesPanel)
+        myPanel!!.add(Box.createVerticalStrut(10))
+        
+        // Colors section
+        myPanel!!.add(TitledSeparator("Colors"))
+        myPanel!!.add(Box.createVerticalStrut(5))
+        
         // Light theme colors panel
-        val lightColorsPanel = JPanel(GridLayout(7, 2))
-        lightColorsPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Light Theme Colors",
-            TitledBorder.LEFT, TitledBorder.TOP
-        )
-
-        lightColorsPanel.add(JBLabel("Nesting Level"))
-        lightColorsPanel.add(JBLabel("Color"))
-
-        for (i in 0 until 6) {
-            lightColorsPanel.add(JBLabel("Level $i"))
-            val colorPanel = RoundedColorPanel()
-            bracketColorsLightPanels.add(colorPanel)
-            lightColorsPanel.add(colorPanel)
-        }
-
-        mainPanel.add(lightColorsPanel)
-        mainPanel.add(Box.createVerticalStrut(10))
-
+        val lightColorsPanel = createColorPanel("Light Theme Colors", bracketColorsLightPanels)
+        lightColorsPanel.alignmentX = Component.LEFT_ALIGNMENT
+        myPanel!!.add(lightColorsPanel)
+        myPanel!!.add(Box.createVerticalStrut(10))
+        
         // Dark theme colors panel
-        val darkColorsPanel = JPanel(GridLayout(7, 2))
-        darkColorsPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Dark Theme Colors",
-            TitledBorder.LEFT, TitledBorder.TOP
-        )
-
-        darkColorsPanel.add(JBLabel("Nesting Level"))
-        darkColorsPanel.add(JBLabel("Color"))
-
-        for (i in 0 until 6) {
-            darkColorsPanel.add(JBLabel("Level $i"))
-            val colorPanel = RoundedColorPanel()
-            bracketColorsDarkPanels.add(colorPanel)
-            darkColorsPanel.add(colorPanel)
-        }
-
-        mainPanel.add(darkColorsPanel)
-        mainPanel.add(Box.createVerticalStrut(10))
-
-        // Additional options panel
-        val optionsPanel = JPanel()
-        optionsPanel.layout = BoxLayout(optionsPanel, BoxLayout.Y_AXIS)
-        optionsPanel.border = BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), "Additional Options",
-            TitledBorder.LEFT, TitledBorder.TOP
-        )
-
+        val darkColorsPanel = createColorPanel("Dark Theme Colors", bracketColorsDarkPanels)
+        darkColorsPanel.alignmentX = Component.LEFT_ALIGNMENT
+        myPanel!!.add(darkColorsPanel)
+        myPanel!!.add(Box.createVerticalStrut(10))
+        
+        // Additional options section
+        myPanel!!.add(TitledSeparator("Additional Options"))
+        myPanel!!.add(Box.createVerticalStrut(5))
+        
+        // Additional options
         skipCommentsAndStringsCheckBox = JBCheckBox("Skip comments and strings")
-        optionsPanel.add(skipCommentsAndStringsCheckBox)
-
+        
+        excludedFileTypesField = JBTextField()
+        excludedFileTypesField!!.toolTipText = 
+            "Enter file extensions without dots or wildcards (e.g., 'java, xml, kt, cs')"
+        
         val excludedFileTypesPanel = JPanel(BorderLayout())
         val excludedFileTypesLabel = JBLabel("Excluded file types (comma-separated):")
         excludedFileTypesLabel.toolTipText = "Enter file types without wildcards, e.g.: 'java, xml, kt, cs'"
         excludedFileTypesPanel.add(excludedFileTypesLabel, BorderLayout.NORTH)
-        excludedFileTypesField = JBTextField()
-        excludedFileTypesField!!.toolTipText =
-            "Enter file extensions without dots or wildcards (e.g., 'java, xml, kt, cs')"
         excludedFileTypesPanel.add(excludedFileTypesField!!, BorderLayout.CENTER)
+        
+        val optionsPanel = JPanel()
+        optionsPanel.layout = BoxLayout(optionsPanel, BoxLayout.Y_AXIS)
+        optionsPanel.add(skipCommentsAndStringsCheckBox)
+        optionsPanel.add(Box.createVerticalStrut(10))
         optionsPanel.add(excludedFileTypesPanel)
-
-        mainPanel.add(optionsPanel)
-        mainPanel.add(Box.createVerticalStrut(10))
-
+        optionsPanel.alignmentX = Component.LEFT_ALIGNMENT
+        
+        myPanel!!.add(optionsPanel)
+        myPanel!!.add(Box.createVerticalStrut(20))
+        
         // Reset to defaults button
-        val resetPanel = JPanel(BorderLayout())
+        val resetButtonPanel = JPanel(BorderLayout())
+        resetButtonPanel.alignmentX = Component.LEFT_ALIGNMENT
         val resetButton = JButton("Reset to defaults")
         resetButton.addActionListener { resetToDefaults() }
-        resetPanel.add(resetButton, BorderLayout.EAST)
-        mainPanel.add(resetPanel)
-
-        myPanel!!.add(mainPanel, BorderLayout.CENTER)
-
+        resetButtonPanel.add(resetButton, BorderLayout.EAST)
+        
+        myPanel!!.add(resetButtonPanel)
+        
         // Load current settings
         reset()
-
+        
         return myPanel!!
+    }
+    
+    private fun createColorPanel(title: String, colorPanels: MutableList<RoundedColorPanel>): JPanel {
+        val panel = JPanel(GridLayout(7, 2, 5, 5))
+        panel.border = JBUI.Borders.empty(5)
+        
+        panel.add(JBLabel("Nesting Level"))
+        panel.add(JBLabel("Color"))
+        
+        for (i in 0 until 6) {
+            panel.add(JBLabel("Level $i"))
+            val colorPanel = RoundedColorPanel()
+            colorPanels.add(colorPanel)
+            panel.add(colorPanel)
+        }
+        
+        return panel
     }
 
     override fun isModified(): Boolean {

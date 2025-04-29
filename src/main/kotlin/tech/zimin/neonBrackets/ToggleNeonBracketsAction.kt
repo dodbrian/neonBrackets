@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets.neonBrackets
+package tech.zimin.neonBrackets
 
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent

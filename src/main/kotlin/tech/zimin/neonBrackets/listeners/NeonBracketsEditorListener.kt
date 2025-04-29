@@ -4,7 +4,12 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.event.EditorFactoryEvent
 import com.intellij.openapi.editor.event.EditorFactoryListener
 import com.intellij.openapi.fileEditor.FileDocumentManager
-import tech.zimin.neonBrackets.neonBrackets.*
+import tech.zimin.neonBrackets.BRACKET_HIGHLIGHTERS
+import tech.zimin.neonBrackets.DOCUMENT_LISTENER
+import tech.zimin.neonBrackets.SELECTION_LISTENER
+import tech.zimin.neonBrackets.SKIP_BRACKET_HIGHLIGHTING
+import tech.zimin.neonBrackets.getIdeProductName
+import tech.zimin.neonBrackets.highlightBracketsInEditor
 
 /**
  * Editor factory listener that tracks when editors are created and released.

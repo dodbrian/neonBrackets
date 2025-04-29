@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets.neonBrackets
+package tech.zimin.neonBrackets
 
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.DocumentListener
@@ -9,6 +9,7 @@ import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
@@ -57,7 +58,7 @@ private fun getActiveBracketPairs(): List<Pair<Char, Char>> {
 }
 
 // Check if a file type is excluded
-private fun isFileTypeExcluded(file: com.intellij.openapi.vfs.VirtualFile): Boolean {
+private fun isFileTypeExcluded(file: VirtualFile): Boolean {
     val settings = NeonBracketsFactory.getInstance().state
     if (settings.excludedFileTypes.isBlank()) return false
 

@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets.neonBrackets
+package tech.zimin.neonBrackets
 
 import com.intellij.codeHighlighting.TextEditorHighlightingPassFactory
 import com.intellij.codeHighlighting.TextEditorHighlightingPassFactoryRegistrar

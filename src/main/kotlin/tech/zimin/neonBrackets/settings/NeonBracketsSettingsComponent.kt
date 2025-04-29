@@ -10,9 +10,9 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import tech.zimin.neonBrackets.common.hexColorTemplate
-import tech.zimin.neonBrackets.neonBrackets.BRACKET_HIGHLIGHTERS
-import tech.zimin.neonBrackets.neonBrackets.NeonBracketsFactory
-import tech.zimin.neonBrackets.neonBrackets.highlightBracketsInEditor
+import tech.zimin.neonBrackets.BRACKET_HIGHLIGHTERS
+import tech.zimin.neonBrackets.NeonBracketsFactory
+import tech.zimin.neonBrackets.highlightBracketsInEditor
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component

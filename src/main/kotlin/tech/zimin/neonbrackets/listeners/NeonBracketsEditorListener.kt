@@ -1,15 +1,15 @@
-package tech.zimin.neonBrackets.listeners
+package tech.zimin.neonbrackets.listeners
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.event.EditorFactoryEvent
 import com.intellij.openapi.editor.event.EditorFactoryListener
 import com.intellij.openapi.fileEditor.FileDocumentManager
-import tech.zimin.neonBrackets.BRACKET_HIGHLIGHTERS
-import tech.zimin.neonBrackets.DOCUMENT_LISTENER
-import tech.zimin.neonBrackets.SELECTION_LISTENER
-import tech.zimin.neonBrackets.SKIP_BRACKET_HIGHLIGHTING
-import tech.zimin.neonBrackets.getIdeProductName
-import tech.zimin.neonBrackets.highlightBracketsInEditor
+import tech.zimin.neonbrackets.BRACKET_HIGHLIGHTERS
+import tech.zimin.neonbrackets.DOCUMENT_LISTENER
+import tech.zimin.neonbrackets.SELECTION_LISTENER
+import tech.zimin.neonbrackets.SKIP_BRACKET_HIGHLIGHTING
+import tech.zimin.neonbrackets.getIdeProductName
+import tech.zimin.neonbrackets.highlightBracketsInEditor
 
 /**
  * Editor factory listener that tracks when editors are created and released.

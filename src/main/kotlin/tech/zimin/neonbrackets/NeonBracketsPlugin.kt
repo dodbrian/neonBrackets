@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets
+package tech.zimin.neonbrackets
 
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.DocumentListener

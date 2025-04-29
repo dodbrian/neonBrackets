@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets
+package tech.zimin.neonbrackets
 
 import com.intellij.codeHighlighting.TextEditorHighlightingPassFactory
 import com.intellij.codeHighlighting.TextEditorHighlightingPassFactoryRegistrar
@@ -7,14 +7,14 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
-import tech.zimin.neonBrackets.settings.NeonBracketsState
+import tech.zimin.neonbrackets.settings.NeonBracketsState
 
 /**
  * Factory for creating bracket highlighting passes.
  */
 @State(
     name = "NeonBracketsSettings",
-    storages = [Storage("neonBrackets.xml")]
+    storages = [Storage("neonbrackets.xml")]
 )
 class NeonBracketsFactory : TextEditorHighlightingPassFactoryRegistrar, PersistentStateComponent<NeonBracketsState> {
     private var state = NeonBracketsState()

@@ -9,4 +9,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "neonBrackets"
+rootProject.name = "neon-brackets"

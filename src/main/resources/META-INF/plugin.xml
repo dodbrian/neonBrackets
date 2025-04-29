@@ -1,7 +1,7 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-    <id>tech.zimin.neonBrackets</id>
+    <id>tech.zimin.neonbrackets</id>
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
@@ -29,19 +29,19 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <!-- Register as application service to store settings -->
-        <applicationService serviceImplementation="tech.zimin.neonBrackets.NeonBracketsFactory" />
-        <editorFactoryListener implementation="tech.zimin.neonBrackets.listeners.NeonBracketsEditorListener"/>
+        <applicationService serviceImplementation="tech.zimin.neonbrackets.NeonBracketsFactory" />
+        <editorFactoryListener implementation="tech.zimin.neonbrackets.listeners.NeonBracketsEditorListener"/>
         <!-- Register startup activity -->
-        <postStartupActivity implementation="tech.zimin.neonBrackets.NeonBracketsInitializer"/>
+        <postStartupActivity implementation="tech.zimin.neonbrackets.NeonBracketsInitializer"/>
         <!-- Register settings page -->
         <applicationConfigurable parentId="tools"
-                                instance="tech.zimin.neonBrackets.settings.NeonBracketsSettingsComponent"/>
+                                instance="tech.zimin.neonbrackets.settings.NeonBracketsSettingsComponent"/>
     </extensions>
     
     <!-- Register actions -->
     <actions>
-        <action id="tech.zimin.neonBrackets.ToggleNeonBracketsAction" 
-                class="tech.zimin.neonBrackets.ToggleNeonBracketsAction"
+        <action id="tech.zimin.neonbrackets.ToggleNeonBracketsAction"
+                class="tech.zimin.neonbrackets.ToggleNeonBracketsAction"
                 text="Toggle Neon Brackets"
                 description="Toggle Neon Brackets highlighting on/off">
             <add-to-group group-id="EditMenu" anchor="last"/>

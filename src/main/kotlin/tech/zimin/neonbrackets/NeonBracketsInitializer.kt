@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets
+package tech.zimin.neonbrackets
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor

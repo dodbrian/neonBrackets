@@ -1,10 +1,10 @@
-package tech.zimin.neonBrackets.listeners
+package tech.zimin.neonbrackets.listeners
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
-import tech.zimin.neonBrackets.highlightBracketsInEditor
+import tech.zimin.neonbrackets.highlightBracketsInEditor
 
 /**
  * Document listener that updates bracket highlighting when the document changes.

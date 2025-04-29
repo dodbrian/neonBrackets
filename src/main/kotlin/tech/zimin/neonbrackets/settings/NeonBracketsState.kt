@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets.settings
+package tech.zimin.neonbrackets.settings
 
 /**
  * Settings state for the plugin.

@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.5.0"
 }
 
-group = "tech.zimin.neonBrackets"
+group = "tech.zimin.neonbrackets"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -78,8 +78,8 @@ tasks {
             val pluginXml = file("src/main/resources/META-INF/plugin.xml")
             val content = pluginXml.readText()
             val updated = content.replace(
-                "<postStartupActivity implementation=\"tech.zimin.neonBrackets.neonBrackets.NeonBracketsStartupActivity\"/>",
-                "<projectService serviceImplementation=\"tech.zimin.neonBrackets.neonBrackets.NeonBracketsStartupActivity\"/>"
+                "<postStartupActivity implementation=\"tech.zimin.neonbrackets.neonbrackets.NeonBracketsStartupActivity\"/>",
+                "<projectService serviceImplementation=\"tech.zimin.neonbrackets.neonbrackets.NeonBracketsStartupActivity\"/>"
             )
             pluginXml.writeText(updated)
         }

@@ -1,4 +1,4 @@
-package tech.zimin.neonBrackets.settings
+package tech.zimin.neonbrackets.settings
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
@@ -9,10 +9,10 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
-import tech.zimin.neonBrackets.common.hexColorTemplate
-import tech.zimin.neonBrackets.BRACKET_HIGHLIGHTERS
-import tech.zimin.neonBrackets.NeonBracketsFactory
-import tech.zimin.neonBrackets.highlightBracketsInEditor
+import tech.zimin.neonbrackets.common.hexColorTemplate
+import tech.zimin.neonbrackets.BRACKET_HIGHLIGHTERS
+import tech.zimin.neonbrackets.NeonBracketsFactory
+import tech.zimin.neonbrackets.highlightBracketsInEditor
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component

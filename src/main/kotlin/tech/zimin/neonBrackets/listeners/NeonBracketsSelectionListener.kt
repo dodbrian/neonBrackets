@@ -1,9 +1,10 @@
-package tech.zimin.neonBrackets.neonBrackets
+package tech.zimin.neonBrackets.listeners
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.SelectionEvent
 import com.intellij.openapi.editor.event.SelectionListener
+import tech.zimin.neonBrackets.neonBrackets.highlightBracketsInEditor
 
 /**
  * Selection listener that updates bracket highlighting when the cursor moves.

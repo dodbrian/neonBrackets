@@ -30,12 +30,12 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- Register as application service to store settings -->
         <applicationService serviceImplementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsFactory" />
-        <editorFactoryListener implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsEditorListener"/>
+        <editorFactoryListener implementation="tech.zimin.neonBrackets.listeners.NeonBracketsEditorListener"/>
         <!-- Register startup activity -->
         <postStartupActivity implementation="tech.zimin.neonBrackets.neonBrackets.NeonBracketsInitializer"/>
         <!-- Register settings page -->
         <applicationConfigurable parentId="tools"
-                                instance="tech.zimin.neonBrackets.neonBrackets.NeonBracketsSettingsComponent"/>
+                                instance="tech.zimin.neonBrackets.settings.NeonBracketsSettingsComponent"/>
     </extensions>
     
     <!-- Register actions -->

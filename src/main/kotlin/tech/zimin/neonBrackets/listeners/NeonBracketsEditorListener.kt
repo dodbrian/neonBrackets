@@ -1,9 +1,10 @@
-package tech.zimin.neonBrackets.neonBrackets
+package tech.zimin.neonBrackets.listeners
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.event.EditorFactoryEvent
 import com.intellij.openapi.editor.event.EditorFactoryListener
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import tech.zimin.neonBrackets.neonBrackets.*
 
 /**
  * Editor factory listener that tracks when editors are created and released.

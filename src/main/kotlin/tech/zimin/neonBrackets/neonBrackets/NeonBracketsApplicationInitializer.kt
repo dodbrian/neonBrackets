@@ -3,6 +3,8 @@ package tech.zimin.neonBrackets.neonBrackets
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import tech.zimin.neonBrackets.listeners.NeonBracketsDocumentListener
+import tech.zimin.neonBrackets.listeners.NeonBracketsSelectionListener
 
 /**
  * Application component that initializes the plugin when it's loaded.

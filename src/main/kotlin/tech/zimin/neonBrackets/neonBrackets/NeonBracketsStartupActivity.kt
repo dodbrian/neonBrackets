@@ -5,6 +5,8 @@ import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
+import tech.zimin.neonBrackets.listeners.NeonBracketsDocumentListener
+import tech.zimin.neonBrackets.listeners.NeonBracketsSelectionListener
 
 /**
  * Startup activity that runs when the IDE starts.

@@ -1,17 +1,27 @@
-package tech.zimin.neonBrackets.neonBrackets
+package tech.zimin.neonBrackets.settings
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.options.Configurable
-import com.intellij.ui.TitledSeparator
 import com.intellij.ui.ColorPanel
+import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import tech.zimin.neonBrackets.common.hexColorTemplate
-import java.awt.*
-import javax.swing.*
+import tech.zimin.neonBrackets.neonBrackets.BRACKET_HIGHLIGHTERS
+import tech.zimin.neonBrackets.neonBrackets.NeonBracketsFactory
+import tech.zimin.neonBrackets.neonBrackets.highlightBracketsInEditor
+import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Component
+import java.awt.GridLayout
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.JButton
+import javax.swing.JComponent
+import javax.swing.JPanel
 
 /**
  * Settings component for the plugin.
@@ -32,7 +42,7 @@ class NeonBracketsSettingsComponent : Configurable {
 
     private var excludedFileTypesField: JBTextField? = null
     private var skipCommentsAndStringsCheckBox: JBCheckBox? = null
-    
+
     // Default colors for light theme
     private val defaultLightColors = listOf(
         Color.decode("#FF69B4"), // Hot Pink
@@ -42,7 +52,7 @@ class NeonBracketsSettingsComponent : Configurable {
         Color.decode("#8A2BE2"), // Blue Violet
         Color.decode("#1E90FF")  // Dodger Blue
     )
-    
+
     // Default colors for dark theme
     private val defaultDarkColors = listOf(
         Color.decode("#DC5A96"), // Dark Hot Pink
@@ -60,22 +70,22 @@ class NeonBracketsSettingsComponent : Configurable {
         myPanel = JPanel()
         myPanel!!.layout = BoxLayout(myPanel, BoxLayout.Y_AXIS)
         myPanel!!.border = JBUI.Borders.empty(10)
-        
+
         // Global enable/disable
         enabledCheckBox = JBCheckBox("Enable Neon Brackets")
         myPanel!!.add(enabledCheckBox)
         myPanel!!.add(Box.createVerticalStrut(10))
-        
+
         // Bracket types section
         myPanel!!.add(TitledSeparator("Bracket Types"))
         myPanel!!.add(Box.createVerticalStrut(5))
-        
+
         // Bracket types checkboxes
         roundBracketsCheckBox = JBCheckBox("( ) Round brackets")
         curlyBracketsCheckBox = JBCheckBox("{ } Curly brackets")
         angleBracketsCheckBox = JBCheckBox("< > Angle brackets")
         squareBracketsCheckBox = JBCheckBox("[ ] Square brackets")
-        
+
         // Create bracket types panel
         val bracketTypesPanel = JPanel(GridLayout(4, 1))
         bracketTypesPanel.add(roundBracketsCheckBox)
@@ -83,87 +93,87 @@ class NeonBracketsSettingsComponent : Configurable {
         bracketTypesPanel.add(angleBracketsCheckBox)
         bracketTypesPanel.add(squareBracketsCheckBox)
         bracketTypesPanel.alignmentX = Component.LEFT_ALIGNMENT
-        
+
         myPanel!!.add(bracketTypesPanel)
         myPanel!!.add(Box.createVerticalStrut(10))
-        
+
         // Colors section
         myPanel!!.add(TitledSeparator("Colors"))
         myPanel!!.add(Box.createVerticalStrut(5))
-        
+
         // Light theme colors panel
         val lightColorsPanel = createColorPanel("Light Theme Colors", bracketColorsLightPanels)
         lightColorsPanel.alignmentX = Component.LEFT_ALIGNMENT
         myPanel!!.add(lightColorsPanel)
         myPanel!!.add(Box.createVerticalStrut(10))
-        
+
         // Dark theme colors panel
         val darkColorsPanel = createColorPanel("Dark Theme Colors", bracketColorsDarkPanels)
         darkColorsPanel.alignmentX = Component.LEFT_ALIGNMENT
         myPanel!!.add(darkColorsPanel)
         myPanel!!.add(Box.createVerticalStrut(10))
-        
+
         // Additional options section
         myPanel!!.add(TitledSeparator("Additional Options"))
         myPanel!!.add(Box.createVerticalStrut(5))
-        
+
         // Additional options
         skipCommentsAndStringsCheckBox = JBCheckBox("Skip comments and strings")
-        
+
         excludedFileTypesField = JBTextField()
-        excludedFileTypesField!!.toolTipText = 
+        excludedFileTypesField!!.toolTipText =
             "Enter file extensions without dots or wildcards (e.g., 'java, xml, kt, cs')"
-        
+
         val excludedFileTypesPanel = JPanel(BorderLayout())
         val excludedFileTypesLabel = JBLabel("Excluded file types (comma-separated):")
         excludedFileTypesLabel.toolTipText = "Enter file types without wildcards, e.g.: 'java, xml, kt, cs'"
         excludedFileTypesPanel.add(excludedFileTypesLabel, BorderLayout.NORTH)
         excludedFileTypesPanel.add(excludedFileTypesField!!, BorderLayout.CENTER)
-        
+
         val optionsPanel = JPanel()
         optionsPanel.layout = BoxLayout(optionsPanel, BoxLayout.Y_AXIS)
         optionsPanel.add(skipCommentsAndStringsCheckBox)
         optionsPanel.add(Box.createVerticalStrut(10))
         optionsPanel.add(excludedFileTypesPanel)
         optionsPanel.alignmentX = Component.LEFT_ALIGNMENT
-        
+
         myPanel!!.add(optionsPanel)
         myPanel!!.add(Box.createVerticalStrut(20))
-        
+
         // Reset to defaults button
         val resetButtonPanel = JPanel(BorderLayout())
         resetButtonPanel.alignmentX = Component.LEFT_ALIGNMENT
         val resetButton = JButton("Reset to defaults")
         resetButton.addActionListener { resetToDefaults() }
         resetButtonPanel.add(resetButton, BorderLayout.EAST)
-        
+
         myPanel!!.add(resetButtonPanel)
-        
+
         // Load current settings
         reset()
-        
+
         return myPanel!!
     }
-    
+
     private fun createColorPanel(title: String, colorPanels: MutableList<ColorPanel>): JPanel {
         val panel = JPanel(GridLayout(7, 2, 5, 5))
         panel.border = JBUI.Borders.empty(5)
-        
+
         panel.add(JBLabel("Nesting Level"))
         panel.add(JBLabel("Color"))
-        
+
         for (i in 0 until 6) {
             panel.add(JBLabel("Level $i"))
             val colorPanel = ColorPanel()
             colorPanels.add(colorPanel)
             panel.add(colorPanel)
         }
-        
+
         return panel
     }
 
     override fun isModified(): Boolean {
-        val settings = NeonBracketsFactory.getInstance().state
+        val settings = NeonBracketsFactory.Companion.getInstance().state
 
         if (enabledCheckBox?.isSelected != settings.enabled) return true
         if (roundBracketsCheckBox?.isSelected != settings.enableRoundBrackets) return true
@@ -207,7 +217,7 @@ class NeonBracketsSettingsComponent : Configurable {
     }
 
     override fun apply() {
-        val settings = NeonBracketsFactory.getInstance().state
+        val settings = NeonBracketsFactory.Companion.getInstance().state
 
         settings.enabled = enabledCheckBox?.isSelected ?: true
         settings.enableRoundBrackets = roundBracketsCheckBox?.isSelected ?: true
@@ -244,7 +254,7 @@ class NeonBracketsSettingsComponent : Configurable {
     }
 
     override fun reset() {
-        val settings = NeonBracketsFactory.getInstance().state
+        val settings = NeonBracketsFactory.Companion.getInstance().state
 
         enabledCheckBox?.isSelected = settings.enabled
         roundBracketsCheckBox?.isSelected = settings.enableRoundBrackets

@@ -5,6 +5,7 @@ import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.ui.JBColor
 import com.intellij.ui.TitledSeparator
+import com.intellij.ui.ColorPanel
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
@@ -24,13 +25,33 @@ class NeonBracketsSettingsComponent : Configurable {
     private var squareBracketsCheckBox: JBCheckBox? = null
 
     // Light theme colors
-    private var bracketColorsLightPanels = mutableListOf<RoundedColorPanel>()
+    private var bracketColorsLightPanels = mutableListOf<ColorPanel>()
 
     // Dark theme colors
-    private var bracketColorsDarkPanels = mutableListOf<RoundedColorPanel>()
+    private var bracketColorsDarkPanels = mutableListOf<ColorPanel>()
 
     private var excludedFileTypesField: JBTextField? = null
     private var skipCommentsAndStringsCheckBox: JBCheckBox? = null
+    
+    // Default colors for light theme
+    private val defaultLightColors = listOf(
+        Color.decode("#FF69B4"), // Hot Pink
+        Color.decode("#4169E1"), // Royal Blue
+        Color.decode("#32CD32"), // Lime Green
+        Color.decode("#FFA500"), // Orange
+        Color.decode("#8A2BE2"), // Blue Violet
+        Color.decode("#1E90FF")  // Dodger Blue
+    )
+    
+    // Default colors for dark theme
+    private val defaultDarkColors = listOf(
+        Color.decode("#DC5A96"), // Dark Hot Pink
+        Color.decode("#375ABE"), // Dark Royal Blue
+        Color.decode("#28AF28"), // Dark Lime Green
+        Color.decode("#DC8C00"), // Dark Orange
+        Color.decode("#7828BE"), // Dark Blue Violet
+        Color.decode("#1978D2")  // Dark Dodger Blue
+    )
 
     override fun getDisplayName(): String = "Neon Brackets"
 
@@ -124,7 +145,7 @@ class NeonBracketsSettingsComponent : Configurable {
         return myPanel!!
     }
     
-    private fun createColorPanel(title: String, colorPanels: MutableList<RoundedColorPanel>): JPanel {
+    private fun createColorPanel(title: String, colorPanels: MutableList<ColorPanel>): JPanel {
         val panel = JPanel(GridLayout(7, 2, 5, 5))
         panel.border = JBUI.Borders.empty(5)
         
@@ -133,7 +154,7 @@ class NeonBracketsSettingsComponent : Configurable {
         
         for (i in 0 until 6) {
             panel.add(JBLabel("Level $i"))
-            val colorPanel = RoundedColorPanel()
+            val colorPanel = ColorPanel()
             colorPanels.add(colorPanel)
             panel.add(colorPanel)
         }
@@ -159,7 +180,7 @@ class NeonBracketsSettingsComponent : Configurable {
                     null
                 }
 
-                if (settingsColor != bracketColorsLightPanels[i].getSelectedColor()) {
+                if (settingsColor != bracketColorsLightPanels[i].selectedColor) {
                     return true
                 }
             }
@@ -173,7 +194,7 @@ class NeonBracketsSettingsComponent : Configurable {
                     null
                 }
 
-                if (settingsColor != bracketColorsDarkPanels[i].getSelectedColor()) {
+                if (settingsColor != bracketColorsDarkPanels[i].selectedColor) {
                     return true
                 }
             }
@@ -197,22 +218,18 @@ class NeonBracketsSettingsComponent : Configurable {
         // Update color lists
         val lightColors = mutableListOf<String>()
         for (panel in bracketColorsLightPanels) {
-            val color = panel.getSelectedColor()
+            val color = panel.selectedColor
             if (color != null) {
                 lightColors.add(String.format(hexColorTemplate, color.red, color.green, color.blue))
-            } else {
-                lightColors.add("#FF69B4") // Default to Hot Pink if no color selected
             }
         }
         settings.bracketColorsLight = lightColors
 
         val darkColors = mutableListOf<String>()
         for (panel in bracketColorsDarkPanels) {
-            val color = panel.getSelectedColor()
+            val color = panel.selectedColor
             if (color != null) {
                 darkColors.add(String.format(hexColorTemplate, color.red, color.green, color.blue))
-            } else {
-                darkColors.add("#DC5A96") // Default to Dark Hot Pink if no color selected
             }
         }
         settings.bracketColorsDark = darkColors
@@ -235,26 +252,34 @@ class NeonBracketsSettingsComponent : Configurable {
         angleBracketsCheckBox?.isSelected = settings.enableAngleBrackets
         squareBracketsCheckBox?.isSelected = settings.enableSquareBrackets
 
-        // Reset color panels
+        // Set colors
         for (i in bracketColorsLightPanels.indices) {
             if (i < settings.bracketColorsLight.size) {
                 try {
-                    bracketColorsLightPanels[i].setSelectedColor(Color.decode(settings.bracketColorsLight[i]))
+                    val color = Color.decode(settings.bracketColorsLight[i])
+                    bracketColorsLightPanels[i].selectedColor = color
                 } catch (_: Exception) {
                     // Use default color if parsing fails
-                    bracketColorsLightPanels[i].setSelectedColor(JBColor(0xFF69B4, 0xFF69B4)) // Hot Pink
+                    bracketColorsLightPanels[i].selectedColor = defaultLightColors[i % defaultLightColors.size]
                 }
+            } else {
+                // Use default color if not enough colors in settings
+                bracketColorsLightPanels[i].selectedColor = defaultLightColors[i % defaultLightColors.size]
             }
         }
 
         for (i in bracketColorsDarkPanels.indices) {
             if (i < settings.bracketColorsDark.size) {
                 try {
-                    bracketColorsDarkPanels[i].setSelectedColor(Color.decode(settings.bracketColorsDark[i]))
+                    val color = Color.decode(settings.bracketColorsDark[i])
+                    bracketColorsDarkPanels[i].selectedColor = color
                 } catch (_: Exception) {
                     // Use default color if parsing fails
-                    bracketColorsDarkPanels[i].setSelectedColor(JBColor(0xDC5A96, 0xDC5A96)) // Dark Hot Pink
+                    bracketColorsDarkPanels[i].selectedColor = defaultDarkColors[i % defaultDarkColors.size]
                 }
+            } else {
+                // Use default color if not enough colors in settings
+                bracketColorsDarkPanels[i].selectedColor = defaultDarkColors[i % defaultDarkColors.size]
             }
         }
 
@@ -267,44 +292,20 @@ class NeonBracketsSettingsComponent : Configurable {
     }
 
     private fun resetToDefaults() {
-        // Reset to default values
-        enabledCheckBox?.isSelected = true
-
+        // Reset bracket types
         roundBracketsCheckBox?.isSelected = true
         curlyBracketsCheckBox?.isSelected = true
         angleBracketsCheckBox?.isSelected = true
         squareBracketsCheckBox?.isSelected = true
 
-        bracketColorsLightPanels.forEachIndexed { index, panel ->
-            panel.setSelectedColor(
-                when (index) {
-                    0 -> Color.decode("#FF69B4") // Hot Pink
-                    1 -> Color.decode("#4169E1") // Royal Blue
-                    2 -> Color.decode("#32CD32") // Lime Green
-                    3 -> Color.decode("#FFA500") // Orange
-                    4 -> Color.decode("#8A2BE2") // Blue Violet
-                    5 -> Color.decode("#1E90FF") // Dodger Blue
-                    else -> JBColor.WHITE
-                }
-            )
+        // Reset colors to defaults
+        for (i in bracketColorsLightPanels.indices) {
+            bracketColorsLightPanels[i].selectedColor = defaultLightColors[i % defaultLightColors.size]
         }
 
-        bracketColorsDarkPanels.forEachIndexed { index, panel ->
-            panel.setSelectedColor(
-                when (index) {
-                    0 -> Color.decode("#DC5A96") // Dark Hot Pink
-                    1 -> Color.decode("#375ABE") // Dark Royal Blue
-                    2 -> Color.decode("#28AF28") // Dark Lime Green
-                    3 -> Color.decode("#DC8C00") // Dark Orange
-                    4 -> Color.decode("#7828BE") // Dark Blue Violet
-                    5 -> Color.decode("#1978D2") // Dark Dodger Blue
-                    else -> JBColor.BLACK
-                }
-            )
+        for (i in bracketColorsDarkPanels.indices) {
+            bracketColorsDarkPanels[i].selectedColor = defaultDarkColors[i % defaultDarkColors.size]
         }
-
-        excludedFileTypesField?.text = ""
-        skipCommentsAndStringsCheckBox?.isSelected = true
     }
 
     private fun refreshAllEditors() {

@@ -3,6 +3,7 @@ package tech.zimin.neonBrackets.neonBrackets
 import com.intellij.ui.ColorPicker
 import com.intellij.ui.ColorUtil
 import com.intellij.ui.JBColor
+import tech.zimin.neonBrackets.common.hexColorTemplate
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics

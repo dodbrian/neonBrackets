@@ -3,13 +3,13 @@ package tech.zimin.neonBrackets.neonBrackets
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.options.Configurable
-import com.intellij.ui.JBColor
 import com.intellij.ui.TitledSeparator
 import com.intellij.ui.ColorPanel
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
+import tech.zimin.neonBrackets.common.hexColorTemplate
 import java.awt.*
 import javax.swing.*
 

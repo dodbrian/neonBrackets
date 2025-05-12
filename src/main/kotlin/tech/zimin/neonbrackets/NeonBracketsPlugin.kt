@@ -142,13 +142,18 @@ fun highlightBracketsInEditor(editor: Editor) {
                     continue
                 }
 
+                // Skip single quotes
+                if (isInSingleQuotes(text, i)) {
+                    continue
+                }
+
                 // Check for opening brackets
                 for ((openChar, closeChar) in activeBracketPairs) {
                     // For angle brackets, only process them if they're used for generics
                     if ((char == '<' || char == '>') && !isGenericAngleBracket(psiFile, i)) {
                         continue
                     }
-                    
+
                     if (char == openChar) {
                         bracketStacks[openChar]?.add(i)
                         break
@@ -179,22 +184,17 @@ fun highlightBracketsInEditor(editor: Editor) {
     }
 }
 
-
 /**
- * Add a highlighter for a bracket.
+ * Check if the position is within single quotes.
  */
-private fun addHighlighter(
-    editor: Editor, position: Int, color: JBColor, highlighters: MutableList<RangeHighlighter>
-) {
-    try {
-        val highlighter = editor.markupModel.addRangeHighlighter(
-            position, position + 1, HighlighterLayer.SELECTION - 1, // Just below selection layer
-            TextAttributes(color, null, null, null, Font.PLAIN), HighlighterTargetArea.EXACT_RANGE
-        )
-        highlighters.add(highlighter)
-    } catch (_: Exception) {
-        // Silent exception handling
+fun isInSingleQuotes(text: String, offset: Int): Boolean {
+    var inSingleQuotes = false
+    for (i in 0 until offset) {
+        if (text[i] == '\'' && (i == 0 || text[i - 1] != '\\')) {
+            inSingleQuotes = !inSingleQuotes
+        }
     }
+    return inSingleQuotes
 }
 
 /**
@@ -209,8 +209,35 @@ private fun isInCommentOrString(psiFile: PsiFile, offset: Int): Boolean {
 }
 
 /**
+ * Add a highlighter for a bracket.
+ */
+private fun addHighlighter(
+    editor: Editor, position: Int, color: JBColor, highlighters: MutableList<RangeHighlighter>
+) {
+    try {
+        val highlighter = editor.markupModel.addRangeHighlighter(
+            position, position + 1, HighlighterLayer.SELECTION - 1,
+            TextAttributes(color, null, null, null, Font.PLAIN), HighlighterTargetArea.EXACT_RANGE
+        )
+        highlighters.add(highlighter)
+    } catch (_: Exception) {
+        // Silent exception handling
+    }
+}
+
+/**
+ * Check if a color is grayed out (i.e., the red, green, and blue components are similar).
+ */
+private fun isGrayedOut(color: Color): Boolean {
+    val threshold = 10 // Adjust this value as needed
+    val red = color.red
+    val green = color.green
+    val blue = color.blue
+    return Math.abs(red - green) <= threshold && Math.abs(red - blue) <= threshold && Math.abs(green - blue) <= threshold
+}
+
+/**
  * Determines if an angle bracket at the given position is used for generics rather than as an operator.
- * Uses a combination of PSI-based detection and character context analysis.
  */
 private fun isGenericAngleBracket(psiFile: PsiFile?, offset: Int): Boolean {
     if (psiFile == null) return true // If we can't determine, default to highlighting
@@ -323,7 +350,7 @@ private fun isGenericByCharacterContext(text: String, position: Int): Boolean {
                 return false
             }
             
-            // Check for number or boolean literal after, which typically indicates a comparison
+            // Check for number or boolean literal before, which typically indicates a comparison
             if (position < text.length - 1) {
                 val nextChar = text[position + 1]
                 if (nextChar.isDigit() || 

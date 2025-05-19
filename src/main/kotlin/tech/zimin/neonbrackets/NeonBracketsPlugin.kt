@@ -1,5 +1,7 @@
 package tech.zimin.neonbrackets
 
+import java.util.concurrent.ConcurrentHashMap
+
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.event.SelectionListener
@@ -23,6 +25,13 @@ val BRACKET_HIGHLIGHTERS = Key<List<RangeHighlighter>>("NEON_BRACKET_HIGHLIGHTER
 val SKIP_BRACKET_HIGHLIGHTING = Key<Boolean>("NEON_SKIP_BRACKET_HIGHLIGHTING")
 val DOCUMENT_LISTENER = Key<DocumentListener>("NEON_DOCUMENT_LISTENER")
 val SELECTION_LISTENER = Key<SelectionListener>("NEON_SELECTION_LISTENER")
+
+// Cache structures for performance optimization
+val QUOTE_REGIONS_CACHE = ConcurrentHashMap<String, List<IntRange>>()
+val COMMENT_STRING_CACHE = ConcurrentHashMap<Int, Boolean>()
+val LAST_CACHE_CLEANUP_TIME = Key<Long>("NEON_LAST_CACHE_CLEANUP_TIME")
+const val CACHE_CLEANUP_INTERVAL_MS = 30000 // 30 seconds
+const val COMMENT_STRING_CACHE_MAX_SIZE = 10000 // Prevent cache from growing too large
 
 // Update the global BRACKET_COLORS to use dynamic colors from settings
 private fun getBracketColors(): List<JBColor> {
@@ -73,7 +82,14 @@ private fun isFileTypeExcluded(file: VirtualFile): Boolean {
 }
 
 /**
+ * Maximum number of brackets to highlight to avoid performance issues
+ * Set significantly higher to ensure full file coverage while still preventing memory issues
+ */
+private const val MAX_BRACKETS_TO_HIGHLIGHT = 25000
+
+/**
  * Directly highlight brackets in the editor without using a highlighting pass.
+ * Optimized for performance with bracket count limits and visible area focus.
  */
 fun highlightBracketsInEditor(editor: Editor) {
     try {
@@ -102,9 +118,8 @@ fun highlightBracketsInEditor(editor: Editor) {
         editor.putUserData(SKIP_BRACKET_HIGHLIGHTING, true)
 
         try {
-            // Process the entire document
+            // Process the document with optimizations
             val document = editor.document
-            val text = document.text
             val bracketColors = getBracketColors()
             val activeBracketPairs = getActiveBracketPairs()
 
@@ -114,48 +129,166 @@ fun highlightBracketsInEditor(editor: Editor) {
             }
 
             val newHighlighters = mutableListOf<RangeHighlighter>()
-            val bracketStacks = mutableMapOf<Char, MutableList<Int>>()
-
-            // Initialize stacks for each bracket type
-            activeBracketPairs.forEach { (open, _) ->
-                bracketStacks[open] = mutableListOf()
+            
+            // Focus on visible area with some margin for better performance
+            val scrollingModel = editor.scrollingModel
+            val visibleArea = scrollingModel.visibleArea
+            val visibleStartLine = editor.xyToLogicalPosition(visibleArea.location).line
+            val visibleEndLine = editor.xyToLogicalPosition(
+                java.awt.Point(visibleArea.x, visibleArea.y + visibleArea.height)
+            ).line
+            
+            // Process the entire document for small to medium files, use margins for very large files
+            // This hybrid approach ensures complete highlighting for most files while maintaining performance
+            val totalLineCount = document.lineCount
+            val isLargeFile = totalLineCount > 10000 // Only use margin approach for very large files
+            
+            val startLine: Int
+            val endLine: Int
+            
+            if (isLargeFile) {
+                // For very large files, use visible area + large margins
+                val marginLines = 1000 // Much larger margin to ensure complete coverage
+                startLine = (visibleStartLine - marginLines).coerceAtLeast(0)
+                endLine = (visibleEndLine + marginLines).coerceAtMost(totalLineCount - 1)
+            } else {
+                // For small to medium files, just process the whole document
+                startLine = 0
+                endLine = totalLineCount - 1
             }
-
-            // Get the PsiFile for checking comments and strings
+            
+            // Get text for the area we're processing
+            val startOffset = document.getLineStartOffset(startLine)
+            val endOffset = document.getLineEndOffset(endLine)
+            val text = document.getText(com.intellij.openapi.util.TextRange(startOffset, endOffset))
+            
+            // Get the PsiFile for checking comments and strings (only if needed)
             val psiFile = if (settings.skipCommentsAndStrings) {
                 val project = editor.project
-                if (project != null) {
-                    PsiDocumentManager.getInstance(project).getPsiFile(document)
-                } else {
-                    null
-                }
+                project?.let { PsiDocumentManager.getInstance(it).getPsiFile(document) }
             } else {
                 null
             }
 
-            // Process each character in the document
-            for (i in text.indices) {
-                val char = text[i]
+            // Map to store bracket pairs for efficient matching
+            val bracketStacks = mutableMapOf<Char, MutableList<Int>>()
+            activeBracketPairs.forEach { (open, _) -> bracketStacks[open] = mutableListOf() }
+            
+            // First pass: Determine comment and string regions
+            val commentRegions = mutableListOf<IntRange>()
+            var inBlockComment = false
+            var inLineComment = false
+            var inStringLiteral = false
+            var escapeNext = false
+            var index = 0
+            
+            while (index < text.length) {
+                if (inBlockComment) {
+                    // Look for end of block comment
+                    if (index < text.length - 1 && text[index] == '*' && text[index + 1] == '/') {
+                        inBlockComment = false
+                        index += 2
+                    } else {
+                        index++
+                    }
+                } else if (inLineComment) {
+                    // Look for end of line
+                    if (text[index] == '\n') {
+                        inLineComment = false
+                    }
+                    index++
+                } else if (inStringLiteral) {
+                    // Handle escape sequences in strings
+                    if (escapeNext) {
+                        escapeNext = false
+                    } else if (text[index] == '\\') {
+                        escapeNext = true
+                    } else if (text[index] == '"') {
+                        inStringLiteral = false
+                    }
+                    index++
+                } else {
+                    // Check for comment or string start
+                    if (index < text.length - 1 && text[index] == '/' && text[index + 1] == '*') {
+                        val commentStart = startOffset + index
+                        inBlockComment = true
+                        index += 2
+                        
+                        // Find end of block comment
+                        var commentEnd = index
+                        while (commentEnd < text.length - 1) {
+                            if (text[commentEnd] == '*' && text[commentEnd + 1] == '/') {
+                                commentEnd += 2
+                                break
+                            }
+                            commentEnd++
+                        }
+                        
+                        if (commentEnd <= text.length) {
+                            commentRegions.add(IntRange(commentStart, startOffset + commentEnd - 1))
+                        }
+                        
+                    } else if (index < text.length - 1 && text[index] == '/' && text[index + 1] == '/') {
+                        val commentStart = startOffset + index
+                        inLineComment = true
+                        index += 2
+                        
+                        // Find end of line comment
+                        var commentEnd = index
+                        while (commentEnd < text.length) {
+                            if (text[commentEnd] == '\n') {
+                                break
+                            }
+                            commentEnd++
+                        }
+                        
+                        if (commentEnd <= text.length) {
+                            commentRegions.add(IntRange(commentStart, startOffset + commentEnd - 1))
+                        }
+                        
+                    } else if (text[index] == '"') {
+                        inStringLiteral = true
+                        index++
+                    } else {
+                        index++
+                    }
+                }
+            }
+            
+            // Process each character in the visible range (plus margin)
+            var bracketCount = 0
+            for (relativePos in text.indices) {
+                val absolutePos = startOffset + relativePos
+                val char = text[relativePos]
+                
+                // Stop if we've reached our limit to prevent memory issues
+                if (bracketCount >= MAX_BRACKETS_TO_HIGHLIGHT) {
+                    break
+                }
 
-                // Skip comments and strings if enabled
-                if (psiFile != null && isInCommentOrString(psiFile, i)) {
+                // Check if this position is in a comment or string region
+                val inCommentOrString = commentRegions.any { absolutePos in it } ||
+                    (psiFile != null && isInCommentOrString(psiFile, absolutePos))
+                    
+                if (inCommentOrString) {
                     continue
                 }
 
                 // Skip single quotes
-                if (isInSingleQuotes(text, i)) {
+                if (isInSingleQuotes(text, relativePos)) {
                     continue
                 }
 
-                // Check for opening brackets
+                // Check for brackets
                 for ((openChar, closeChar) in activeBracketPairs) {
-                    // For angle brackets, only process them if they're used for generics
-                    if ((char == '<' || char == '>') && !isGenericAngleBracket(psiFile, i)) {
+                    // For angle brackets, check if it's a generic (optimization: only if angle brackets are enabled)
+                    if ((char == '<' || char == '>') && 
+                        !isGenericByCharacterContext(text, relativePos)) {
                         continue
                     }
 
                     if (char == openChar) {
-                        bracketStacks[openChar]?.add(i)
+                        bracketStacks[openChar]?.add(absolutePos)
                         break
                     } else if (char == closeChar && bracketStacks[openChar]?.isNotEmpty() == true) {
                         val openPos = bracketStacks[openChar]?.removeAt(bracketStacks[openChar]?.size!! - 1) ?: continue
@@ -167,7 +300,8 @@ fun highlightBracketsInEditor(editor: Editor) {
 
                         // Add highlighters for both brackets
                         addHighlighter(editor, openPos, color, newHighlighters)
-                        addHighlighter(editor, i, color, newHighlighters)
+                        addHighlighter(editor, absolutePos, color, newHighlighters)
+                        bracketCount += 2
                         break
                     }
                 }
@@ -185,27 +319,111 @@ fun highlightBracketsInEditor(editor: Editor) {
 }
 
 /**
- * Check if the position is within single quotes.
+ * Check if the position is within single quotes. Optimized with caching.
  */
 fun isInSingleQuotes(text: String, offset: Int): Boolean {
-    var inSingleQuotes = false
-    for (i in 0 until offset) {
-        if (text[i] == '\'' && (i == 0 || text[i - 1] != '\\')) {
-            inSingleQuotes = !inSingleQuotes
+    // For very small texts, use the direct approach without caching
+    if (text.length < 1000) {
+        var inSingleQuotes = false
+        for (i in 0 until offset) {
+            if (text[i] == '\'' && (i == 0 || text[i - 1] != '\\')) {
+                inSingleQuotes = !inSingleQuotes
+            }
+        }
+        return inSingleQuotes
+    }
+    
+    // Generate a unique key for this text (use hashCode since we only need equality comparison)
+    val textKey = text.hashCode().toString()
+    
+    // Check if we have cached quote regions for this text
+    var quoteRegions = QUOTE_REGIONS_CACHE.get(textKey)
+    
+    // If not in cache, compute all quoted regions and cache them
+    if (quoteRegions == null) {
+        val regions = mutableListOf<IntRange>()
+        var start = -1
+        
+        for (i in text.indices) {
+            if (text[i] == '\'' && (i == 0 || text[i - 1] != '\\')) {
+                if (start == -1) {
+                    // Opening quote
+                    start = i
+                } else {
+                    // Closing quote
+                    regions.add(IntRange(start, i))
+                    start = -1
+                }
+            }
+        }
+        
+        // Handle unclosed quote
+        if (start != -1) {
+            regions.add(IntRange(start, text.length - 1))
+        }
+        
+        quoteRegions = regions
+        
+        // Only cache if not too large (prevent memory issues)
+        if (QUOTE_REGIONS_CACHE.size < 100) {
+            QUOTE_REGIONS_CACHE.put(textKey, quoteRegions)
         }
     }
-    return inSingleQuotes
+    
+    // Check if offset falls within any quoted region
+    for (range in quoteRegions) {
+        if (offset > range.first && offset <= range.last) {
+            return true
+        }
+    }
+    
+    return false
 }
 
 /**
- * Check if the position is within a comment or string.
+ * Check if the position is within a comment or string with caching for better performance.
  */
 private fun isInCommentOrString(psiFile: PsiFile, offset: Int): Boolean {
+    // Use the cache key as the hash of the PSI file plus offset
+    val cacheKey = (psiFile.hashCode() * 31 + offset)
+    
+    // Check if we have this result in the cache
+    val cachedResult = COMMENT_STRING_CACHE[cacheKey]
+    if (cachedResult != null) {
+        return cachedResult
+    }
+    
+    // Clean up cache periodically to prevent memory bloat
+    cleanupCacheIfNeeded(psiFile)
+    
+    // If not in cache, do the expensive PSI operation
     val element = psiFile.findElementAt(offset)
-    return element != null && (PsiTreeUtil.getParentOfType(
+    val result = element != null && (PsiTreeUtil.getParentOfType(
         element, PsiComment::class.java
     ) != null || element.node?.elementType.toString().contains("STRING") || element.node?.elementType.toString()
         .contains("COMMENT"))
+    
+    // Only cache if the cache isn't too large
+    if (COMMENT_STRING_CACHE.size < COMMENT_STRING_CACHE_MAX_SIZE) {
+        COMMENT_STRING_CACHE[cacheKey] = result
+    }
+    
+    return result
+}
+
+/**
+ * Clean up the comment/string cache periodically to prevent memory bloat.
+ */
+private fun cleanupCacheIfNeeded(psiFile: PsiFile) {
+    val project = psiFile.project
+    val lastCleanup = project.getUserData(LAST_CACHE_CLEANUP_TIME) ?: 0L
+    val currentTime = System.currentTimeMillis()
+    
+    // Only clean up if enough time has passed since last cleanup
+    if (currentTime - lastCleanup > CACHE_CLEANUP_INTERVAL_MS) {
+        COMMENT_STRING_CACHE.clear()
+        project.putUserData(LAST_CACHE_CLEANUP_TIME, currentTime)
+    }
 }
 
 /**
@@ -237,11 +455,25 @@ private fun isGrayedOut(color: Color): Boolean {
 }
 
 /**
+ * Cache for angle bracket analysis results
+ */
+private val ANGLE_BRACKET_CACHE = ConcurrentHashMap<Int, Boolean>()
+
+/**
  * Determines if an angle bracket at the given position is used for generics rather than as an operator.
+ * Optimized version that prefers character context analysis over expensive PSI operations.
  */
 private fun isGenericAngleBracket(psiFile: PsiFile?, offset: Int): Boolean {
     if (psiFile == null) return true // If we can't determine, default to highlighting
     
+    // Check if we have a cached result
+    val cacheKey = offset + (psiFile.hashCode() * 31)
+    val cachedResult = ANGLE_BRACKET_CACHE[cacheKey]
+    if (cachedResult != null) {
+        return cachedResult
+    }
+    
+    // Get document text
     val document = PsiDocumentManager.getInstance(psiFile.project).getDocument(psiFile) ?: return true
     if (offset < 0 || offset >= document.textLength) return false
     
@@ -251,44 +483,15 @@ private fun isGenericAngleBracket(psiFile: PsiFile?, offset: Int): Boolean {
     // Only process angle brackets
     if (char != '<' && char != '>') return false
     
-    try {
-        // First try PSI-based detection
-        val element = psiFile.findElementAt(offset)
-        if (element != null) {
-            val elementType = element.elementType.toString()
-            
-            // Check if we're in a comment or string
-            if (elementType.contains("COMMENT") || elementType.contains("STRING")) {
-                return false
-            }
-            
-            // Check parent context for type-related elements
-            var current = element.parent
-            var depth = 0
-            val maxDepth = 3 // Limit search depth
-            
-            while (current != null && depth < maxDepth) {
-                val parentType = current.node?.elementType?.toString() ?: ""
-                
-                if (parentType.contains("TYPE") || 
-                    parentType.contains("GENERIC") || 
-                    parentType.contains("CLASS") || 
-                    parentType.contains("FUNCTION_TYPE")) {
-                    return true
-                }
-                
-                current = current.parent
-                depth++
-            }
-        }
-        
-        // Fallback to character context analysis
-        return isGenericByCharacterContext(text, offset)
-        
-    } catch (e: Exception) {
-        // If anything goes wrong, fall back to character context analysis
-        return isGenericByCharacterContext(text, offset)
+    // Start with character context analysis which is much faster
+    val result = isGenericByCharacterContext(text, offset)
+    
+    // Only cache if the cache isn't too large
+    if (ANGLE_BRACKET_CACHE.size < 10000) {
+        ANGLE_BRACKET_CACHE[cacheKey] = result
     }
+    
+    return result
 }
 
 /**
@@ -381,16 +584,79 @@ fun getIdeProductName(): String {
 }
 
 /**
- * Clear all existing highlighters from the editor.
+ * Clear all existing highlighters from the editor and clean up caches.
  */
 fun clearHighlighters(editor: Editor) {
-    val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS) ?: emptyList()
-    existingHighlighters.forEach {
-        try {
-            it.dispose()
-        } catch (_: Exception) {
-            // Silent exception handling
+    // Clean up highlighters
+    val existingHighlighters = editor.getUserData(BRACKET_HIGHLIGHTERS)
+    if (existingHighlighters != null) {
+        for (highlighter in existingHighlighters) {
+            try {
+                highlighter.dispose()
+            } catch (_: Exception) {
+                // Silent exception handling
+            }
         }
     }
-    editor.putUserData(BRACKET_HIGHLIGHTERS, emptyList())
+
+    editor.putUserData(BRACKET_HIGHLIGHTERS, null)
+    
+    // Clean up associated caches
+    cleanupCaches(editor)
+}
+
+/**
+ * Clean up any caches associated with this editor to prevent memory leaks.
+ * Should be called when an editor is closed or the plugin is disabled.
+ */
+private fun cleanupCaches(editor: Editor) {
+    val document = editor.document
+    val text = document.text
+    
+    // Clean up quote regions cache for this document
+    val textKey = text.hashCode().toString()
+    QUOTE_REGIONS_CACHE.remove(textKey)
+    
+    // Clean up comment/string cache entries related to this file
+    val file = FileDocumentManager.getInstance().getFile(document)
+    if (file != null && editor.project != null) {
+        val psiFile = PsiDocumentManager.getInstance(editor.project!!).getPsiFile(document)
+        if (psiFile != null) {
+            val fileHash = psiFile.hashCode()
+            
+            // Remove comment string cache entries for this file
+            val keysToRemove = COMMENT_STRING_CACHE.keys().asSequence()
+                .filter { it.toString().startsWith(fileHash.toString()) }
+                .toList()
+                
+            for (key in keysToRemove) {
+                COMMENT_STRING_CACHE.remove(key)
+            }
+            
+            // Clean angle bracket cache entries
+            val angleKeysToRemove = ANGLE_BRACKET_CACHE.keys().asSequence()
+                .filter { (it - fileHash * 31) in 0 until document.textLength }
+                .toList()
+                
+            for (key in angleKeysToRemove) {
+                ANGLE_BRACKET_CACHE.remove(key)
+            }
+        }
+    }
+    
+    // If caches are getting too large, trigger a more aggressive cleanup
+    if (QUOTE_REGIONS_CACHE.size > 50 || 
+        COMMENT_STRING_CACHE.size > COMMENT_STRING_CACHE_MAX_SIZE / 2 || 
+        ANGLE_BRACKET_CACHE.size > 5000) {
+        purgeAllCaches()
+    }
+}
+
+/**
+ * Purge all caches when memory pressure is high
+ */
+private fun purgeAllCaches() {
+    QUOTE_REGIONS_CACHE.clear()
+    COMMENT_STRING_CACHE.clear()
+    ANGLE_BRACKET_CACHE.clear()
 }

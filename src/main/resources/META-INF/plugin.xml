@@ -35,7 +35,7 @@
         <postStartupActivity implementation="tech.zimin.neonbrackets.NeonBracketsInitializer"/>
         <!-- Register settings page -->
         <applicationConfigurable parentId="tools"
-                                instance="tech.zimin.neonbrackets.settings.NeonBracketsSettingsComponent"/>
+                                instance="tech.zimin.neonbrackets.settings.NeonBracketsSettings"/>
     </extensions>
     
     <!-- Register actions -->
